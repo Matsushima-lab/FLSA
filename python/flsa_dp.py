@@ -11,14 +11,18 @@ class DeltaFunc():
         '''
         pass
 
-    def forward(lamb, prev_delta, loss):
+    def forward(self, lamb: float, yi: float) -> DeltaFunc:
         '''
+        Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
+
         Args:
         Return; DeltaFunc
         '''
         return DeltaFunc()
 
     def find_min(self):
+        '''
+        '''
         return 0
 
 
@@ -30,8 +34,8 @@ class DeltaSquared(DeltaFunc):
     pass
 
 
-if __name__ == "__main__":
-    n = 10
+def main(y: np.array, lamb: float, loss: str) -> np.array:
+    n = y.size
     delta_squared = [None] * n
     beta = [0] * n
     delta_squared[0] = DeltaSquared()
@@ -40,3 +44,8 @@ if __name__ == "__main__":
     beta[n-1] = delta_squared[n-1].find_min()
     for i in range(n-1, 0):
         beta[i] = delta_squared[i].backward()
+    return beta
+
+
+if __name__ == "__main__":
+    main()
