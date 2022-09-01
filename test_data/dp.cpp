@@ -1,11 +1,12 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <string>
 using namespace std;
 
 void tf_dp (int n, double *y, double lam, double *beta);
 
-void result_write(int n, double *beta);
+void result_write(int n, double *beta, double lam);
 
 int main(int argc, char *argv[]) {
   double y_val;
@@ -18,28 +19,23 @@ int main(int argc, char *argv[]) {
   while (fscanf(fp, "%lf", &y_val) != EOF) {
     n++;
   }
-
+  fclose(fp);
   y = new double[n];
   beta = new double[n];
 
   int i = 0;
+  fp = fopen(input, "r");
   while (fscanf(fp, "%lf", &y_val) != EOF) {
     y[i] = y_val;
     i++;
   }
-
   fclose(fp);
-
-  cout << n << endl;
 
   for (int i = 0; i < 1000; i++) {
     tf_dp(n, y, lam, beta);
   }
 
-  result_write(n, beta);
-
-  delete[] y;
-  delete[] beta;
+  result_write(n, beta, lam);
 
   return 0;
 }
@@ -173,8 +169,12 @@ void tf_dp (int n, double *y, double lam, double *beta)
   free(tp);
 }
 
-void result_write(int n, double *beta) {
-  FILE *fp = fopen("dp_result.txt", "w");
+void result_write(int n, double *beta, double lam) {
+  string n_str = to_string(n);
+  string lam_str = to_string(lam);
+  string filename = "lam" + lam_str + "output" + n_str + ".txt";
+  
+  FILE *fp = fopen(filename.c_str(), "w");
   for(int i = 0; i < n; i++) {
     fprintf(fp, "%lf\n", beta[i]);
   }
