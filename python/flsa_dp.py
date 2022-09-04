@@ -1,15 +1,19 @@
-
+import numpy as np
 
 class DeltaFunc():
     def __init__(self) -> None:
         pass
 
-    def backward(self, beta):
+    def backward(self):
         '''
         Args:
         Return:beta
         '''
-        pass
+        return self.b 
+        '''
+        self.b is a float or a set of float that satisfies delta' = +-lambda
+        Calculated in the process of "forward" method
+        '''
 
     def forward(self, lamb: float, yi: float) -> DeltaFunc:
         '''
@@ -39,8 +43,8 @@ def main(y: np.array, lamb: float, loss: str) -> np.array:
     delta_squared = [None] * n
     beta = [0] * n
     delta_squared[0] = DeltaSquared()
-    for i in range(n):
-        delta_squared[i+1] = delta_squared[i-1].forward()
+    for i in range(n-1):
+        delta_squared[i+1] = delta_squared[i].forward()
     beta[n-1] = delta_squared[n-1].find_min()
     for i in range(n-1, 0):
         beta[i] = delta_squared[i].backward()
