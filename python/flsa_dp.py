@@ -2,6 +2,7 @@ from colorsys import yiq_to_rgb
 import numpy as np
 
 from turtle import forward
+from __future__ import annotations
 
 
 class DeltaFunc:
@@ -120,13 +121,13 @@ class DeltaSquared(DeltaFunc):
                     new_knot_line_p = (self.a_b_list[i], self.a_c_list[i])
                     break
             survive_knots = self.knots[
-                left_survive_knot_index : right_survive_knot_index + 1
+                left_survive_knot_index: right_survive_knot_index + 1
             ]
             survive_a_b_list = self.a_b_list[
-                left_survive_knot_index : right_survive_knot_index + 2
+                left_survive_knot_index: right_survive_knot_index + 2
             ]
             survive_a_c_list = self.a_c_list[
-                left_survive_knot_index : right_survive_knot_index + 2
+                left_survive_knot_index: right_survive_knot_index + 2
             ]
 
         else:
