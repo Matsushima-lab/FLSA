@@ -1,9 +1,13 @@
 
 
+from turtle import forward
+
+
 class DeltaFunc():
     def __init__(self) -> None:
         pass
 
+# TODO -> takeda kun
     def backward(self, beta):
         '''
         Args:
@@ -27,11 +31,17 @@ class DeltaFunc():
 
 
 class Deltalogistic(DeltaFunc):
-    pass
+    def forward(self, lamb, yi) -> Deltalogistic:
+        pass
 
 
 class DeltaSquared(DeltaFunc):
-    pass
+    def __init__(self, X, y):
+        self.X = X
+        self.y = y
+
+    def forward(self, lamb: float, yi: float) -> DeltaFunc:
+        pass
 
 
 def main(y: np.array, lamb: float, loss: str) -> np.array:
