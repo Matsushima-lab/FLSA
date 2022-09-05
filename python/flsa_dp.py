@@ -3,34 +3,33 @@ import numpy as np
 from turtle import forward
 
 
-class DeltaFunc():
+class DeltaFunc:
     def __init__(self) -> None:
         pass
 
-# TODO -> takeda kun
+    # TODO -> takeda kun
     def backward(self):
-        '''
+        """
         Args:
         Return:beta
-        '''
+        """
         return self.b
-        '''
+        """
         self.b is a float or a set of float that satisfies delta' = +-lambda
         Calculated in the process of "forward" method
-        '''
+        """
 
     def forward(self, lamb: float, yi: float) -> DeltaFunc:
-        '''
+        """
         Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
 
         Args:
         Return; DeltaFunc
-        '''
+        """
         return DeltaFunc()
 
     def find_min(self):
-        '''
-        '''
+        """ """
         return 0
 
 
@@ -53,10 +52,10 @@ def main(y: np.array, lamb: float, loss: str) -> np.array:
     delta_squared = [None] * n
     beta = [0] * n
     delta_squared[0] = DeltaSquared()
-    for i in range(n-1):
-        delta_squared[i+1] = delta_squared[i].forward()
-    beta[n-1] = delta_squared[n-1].find_min()
-    for i in range(n-1, 0):
+    for i in range(n - 1):
+        delta_squared[i + 1] = delta_squared[i].forward()
+    beta[n - 1] = delta_squared[n - 1].find_min()
+    for i in range(n - 1, 0):
         beta[i] = delta_squared[i].backward()
     return beta
 
