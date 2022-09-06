@@ -8,12 +8,10 @@ $-\infty = k_1 < \cdots < k_{N+1} = \infty$ are called knots.
 
 Abstract `class DeltaFunc` has
 ```python
-bp
-bm
 knots
 knots_n
 ```
-for instance variables and 
+for $(k_t)$ and $N$ as instance variables and 
 
 ```python  
 def forward(self, y):  # return next delta for a given delta
@@ -64,7 +62,7 @@ by $k_1 \gets k, g_1(x) \gets \ell(x,y)$ and $k_t \gets k_{t-t'+1},  g_t(x) \get
 
 ## case of squared loss
 
-For `class DeltaSquared(DeltaFunc) ` we see $\delta_1(x) = \ell(x,y_1) = (x-y_1)^2$ and 
+For `class DeltaSquared(DeltaFunc)` we see $\delta_1(x) = \ell(x,y_1) = (x-y_1)^2$ and 
 
 $$\delta_2(x) = \min_{x_1}\ (x_1-y_1)^2 + \lambda |x -x_1|, $$
 
@@ -74,7 +72,15 @@ $$ \sum_{t=1}^{N} (a_t x^2 + b_t x + c_t )  [k_t < x < k_{t+1}]. $$
 
 It turns out $\delta_i(x)$ in general can be written in this form in squared loss case.
 Thus, we store knots $(k_t)$, number of knots $N$, and coefficients $(a_t),(b_t),(c_t)$. It turns out $(c_t)$ is unnessesary.
-
+```python
+class DeltaSquared(DeltaFunc):
+  def __init__(self,y):
+    self.knots_n = 1
+    self.knots = [-float('inf'), float('inf')] 
+    self.coef_a = [1]
+    self.coef_b = [-2 * y]
+```
+for $(a_t),(b_t)$
 ### Forward step
 1. Initialize $\delta_1(x) = \ell(x,y_1) = (x-y_1)^2$
 2. For $t=2,\ldots,n$,
