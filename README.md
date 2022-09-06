@@ -46,7 +46,7 @@ From $i=n-1,\ldots,1$, we compute
 
 $$x_i^* = \mathop{\mathrm{argmin}}\limits_{x} \ \delta(x) + \lambda |x - x_{i+1}^*| $$
 
-# Implementation Details
+# Implementation
 
 ## Class for Delta function
 
@@ -59,5 +59,5 @@ backward
 find_min
 ```
 
-
+Currently, a class for squared loss $\ell(x,y) = (x-y)^2$ is going to be implemented.
 
