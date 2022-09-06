@@ -23,9 +23,9 @@ This method computes $\delta'(k_t)$ for given $t$
 
 
 ```
-def calc_root_of(t)   
+def calc_inverse(t,d)   
 ```
-This method finds a root of $g_t'(x)=0$
+This method finds a root of $g_t'(x)=d$
 
 ## case of squared loss
 
