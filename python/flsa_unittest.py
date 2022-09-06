@@ -20,8 +20,8 @@ class ReturnTest(unittest.TestCase):
         fi.close()
         fo.close()
 
-        beta = flsa_dp.main(np.array(args[0]), args[1], "squared")
-        self.assertTrue(np.testing.assert_array_equal(beta, np.array(args[2])))
+        beta = flsa_dp.main(np.array(input_data), args[1], "squared")
+        self.assertTrue(np.testing.assert_array_equal(beta, np.array(output_data)))
 
 
 if __name__ == "__main__":
