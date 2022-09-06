@@ -28,11 +28,11 @@ The algorithm is based on dynamic programming and consists of forawd and backwar
 ## Forward step
 As an initialization, we set 
 
-$$ \delta_1(x) = \ell(x_1,y_1) $$
+$$ \delta_1(x) = \ell(x,y_1) $$
 
 From $i=2,\ldots ,n$, we compute 
 
-$$\delta_i (x) = \min_{x_{i-1}} \delta_{i-1}(x_{i-1}) + \ell(x,y_i) + \lambda |x-x_{i-1}|$$
+$$\delta_i (x) = \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \ell(x,y_i) + \lambda |x-x_{i-1}|$$
 
 Then, $\mathop{\mathrm{argmin}}_{x} \delta_n (x)$ is $n$-th element of a solution of the problem.
 
@@ -40,24 +40,14 @@ Then, $\mathop{\mathrm{argmin}}_{x} \delta_n (x)$ is $n$-th element of a solutio
 
 As an initialization we get
 
-$$x_n^* = \mathop{\mathrm{argmin}}_{x}\  \delta_n (x)$$
+$$x_n^* = \mathop{\mathrm{argmin}}_{x\in \mathbb{R}}\  \delta_n (x)$$
 
 From $i=n-1,\ldots,1$, we compute
 
-$$x_i^* = \mathop{\mathrm{argmin}}\limits_{x} \ \delta(x) + \lambda |x - x_{i+1}^*| $$
+$$x_i^* = \mathop{\mathrm{argmin}}\limits_{x\in \mathbb{R}} \ \delta(x) + \lambda |x - x_{i+1}^*| $$
 
 # Implementation
 
-## Class for Delta function
-
 Class for function $\delta$ has to be implemented for each loss.
-
-Abstract Class of function $\delta$ requires:
-```
-forward
-backward
-find_min
-```
-
 Currently, a class for squared loss $\ell(x,y) = (x-y)^2$ is going to be implemented.
 
