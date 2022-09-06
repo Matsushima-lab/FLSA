@@ -1,8 +1,8 @@
+from __future__ import annotations
 from colorsys import yiq_to_rgb
 import numpy as np
 
 from turtle import forward
-from __future__ import annotations
 
 
 class DeltaFunc:
@@ -13,12 +13,14 @@ class DeltaFunc:
         self.knots_n = len(self.knots)
 
     # TODO -> takeda kun
-    def backward(self):
+    def backward(self, next_beta):
         """
         Args:
         Return:beta
         """
-        return self.b
+
+        print(next_beta, self.bp, self.bm)
+        return max(min(next_beta, self.bp), self.bm)
         """
         self.b is a float or a set of float that satisfies delta' = +-lambda
         Calculated in the process of "forward" method
@@ -88,6 +90,19 @@ class DeltaSquared(DeltaFunc):
         next_a_c_list = [fac + next_e_ac for fac in next_f_a_c_list]
         return DeltaSquared(next_knots, next_a_b_list, next_a_c_list, next_bm, next_bp)
 
+    def find_min(self):
+        for i in range(self.knots_n):
+            if (
+                self.calc_y_from_b(
+                    self.knots[i], self.a_b_list[i], self.a_c_list[i]
+                )
+                >= 0
+            ):
+
+                return self.calc_b_from_y(0, self.a_b_list[i], self.a_c_list[i])
+
+        return self.calc_b_from_y(0, self.a_b_list[self.knots_n], self.a_c_list[self.knots_n])
+
     def solve_next_knots(self, lamb: float, next_bm, next_bp):
         """solve the value of bs for next delta's knots. Also calculate ab and ac of the next f function
 
@@ -143,7 +158,7 @@ class DeltaSquared(DeltaFunc):
         right_new_knot = self.calc_b_from_y(
             next_bp, new_knot_line_p[0], new_knot_line_p[1]
         )
-        next_knots = [right_new_knot] + survive_knots + [left_new_knot]
+        next_knots = [left_new_knot] + survive_knots + [right_new_knot]
         next_f_a_b_list = [0] + survive_a_b_list + [0]
         next_f_a_c_list = [-lamb] + survive_a_c_list + [lamb]
         return next_knots, next_f_a_b_list, next_f_a_c_list
@@ -156,20 +171,23 @@ class DeltaSquared(DeltaFunc):
         return (y - ac) / ab
 
 
-def main(y: np.array, lamb: float, loss: str) -> np.array:
+def main(y: np.array, lamb: float, loss: str = None) -> np.array:
     n = y.size
     delta_squared = [None] * n
     beta = [0] * n
     delta_squared[0] = DeltaSquared(
-        y=y, knot=[], bm=None, bp=None, a_b_list=[1], a_c_list=[0]
+        knots=[], bm=None, bp=None, a_b_list=[1], a_c_list=[0]
     )
     for i in range(n - 1):
         delta_squared[i + 1] = delta_squared[i].forward(lamb, y[i], y[i + 1])
+        print(f'delta_squared[{i + 1}]:', vars(delta_squared[i+1]))
     beta[n - 1] = delta_squared[n - 1].find_min()
+    print(beta[n-1])
     for i in range(n - 1, 0):
-        beta[i] = delta_squared[i].backward()
+        beta[i - 1] = delta_squared[i].backward(next_beta=beta[i])
     return beta
 
 
 if __name__ == "__main__":
-    main()
+    beta = main(np.array([0, 1]), 0.5)
+    print(beta)
