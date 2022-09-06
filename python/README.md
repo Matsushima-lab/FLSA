@@ -23,7 +23,9 @@ Then `solve` can be written as follows:
 ```python  
 def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
     n = y.size
-    delta = beta = [None] * n
+    x = [0] * n
+    delta = [None] * n
+    
     # delta_1(x) = ell(x,y_1)
     if loss == 'squared':
       delta[0] = DeltaSquared(y[0]) 
@@ -37,37 +39,50 @@ def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
         delta[i + 1] = delta[i].forward(lamb, y[i], y[i + 1])
     
     # Find_min Step
-    beta[n - 1] = delta[n - 1].find_min()
+    x[n - 1] = delta[n - 1].find_min()
     
     # Backward Step
     for i in range(n - 1, 0, -1):
-        beta[i - 1] = delta[i].backward(beta[i])
-    return beta
+        x[i - 1] = delta[i].backward(x[i])
+    return x
 ```  
 
 # Implementation Deatils for Delta functions
 
 Information on $g_t$s are stored in cocrete classes. 
-To interact, we need the following private methods:
+
+### Find_min step
+1. Find $t'$ such that $\delta_n(k_{t'}) \le 0 < \delta_n(k_{t'+1})$, i.e., `derivative_at(t)` returns non-negative value 
+2. Find $x$ such that $g'_{t'}(x) = 0$   
+
 
 ```python
 def __calc_derivative_at(t):
 ```
 This method computes $\delta'(k_t)$ for given $t$ 
 
-
 ```python
 def __calc_inverse(t,d):   
 ```
 This method finds a root of $g_t'(x)=d$
 
-for `find_min(self) `.
+Then `find_min(self) ` can be written as follows:
+```python
+def find_min(self):
+    for i in range(self.knots_n):
+        if self.__calc_derivative_at(i) >= 0:
+            break
+    return self.__calc_inverse(i,0)
+```
+### Backward step
+
+### Forward step
 To update the infomation on $g$
 
 ```python
-def __add_linear(b):   
+def __add_loss(t, y):   
 ```
-This method updates $g_t(x) \gets g_t(x) + bx$ for each $t$
+This method updates $g_t(x) \gets g_t(x) + \ell(x,y)$.
 
 ```python
 def __overwrite_right(y,k):   
@@ -86,6 +101,25 @@ $$ \delta(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 
 by $k_1 \gets k, g_1(x) \gets \ell(x,y)$ and $k_t \gets k_{t-t'+1},  g_t(x) \gets g_{t-t'+1}(x)$  for $t =1,\ldots, N$ in which $N \gets N - t' +1$.
 
+```python
+def forward(self, λ, y):
+    next = self.copy()
+    for i in range(self.knots_n,0,-1):
+        if self.__derivative_at(i) < λ:
+            break
+    bp = self.__calc_inverse(i,λ)
+    next.__overwrite_right(y,i,bp)
+
+    for i in range(self.knots_n):
+        if self.__derivative_at(i) > -λ :
+            break
+    bm = self.__calc_inverse(i,-λ)
+    next.__overwrite_left(y,i,bm)
+    
+    for i in range(self.knots_n):
+        next.__add_loss(i,y) 
+    return next
+```
 
 ## Case of squared loss
 
@@ -118,11 +152,8 @@ coef_b = [coef_bm] + coef_b[i:j] + [coef_bp]
 ```
 Here, .......
 
-### Find_min step
-1. Find $t'$ such that $\delta_n(k_{t'}) \le 0 < \delta_n(k_{t'+1})$, i.e., `derivative_at(t)` returns non-negative value 
-2. Find $x$ such that $g'_{t'}(x) = 0$   
 
-### Backward step
+
 
 
 
