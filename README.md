@@ -9,3 +9,20 @@ $$y = (y_1,\ldots,y_n) \in \mathbb{R}^n, \ell: \mathbb{R} \times \mathbb{R} \to 
 Output: Solution of
 
 $$\mathop{\mathrm{argmin}}\limits_{x= (x_1,\ldots,x_n) \in \mathbb{R}^n} \sum_{i=1}^n \ell(x_i,y_i) + \lambda \sum_{i=1}^{n-1}|x_{i}-x_{i+1}|$$
+
+
+# Algorithm
+The algorithm is based on dynamic programming and consists of forawd and backward step
+
+## Forward step
+As an initialization, we set 
+
+$$ \delta_1(x) = \ell(x_1,y_1) $$
+
+From $i=2,\ldots ,n$, we compute 
+
+$$\delta_i (x) = \min_{x_{i-1}} \delta_{i-1}(x_{i-1}) + \ell(x,y_i) + \lambda |x-x_{i-1}|$$
+
+Then, $\mathop{\mathrm{argmin}}_{x} \delta_n (x)$ is $n$-th element of a solution of the problem.
+
+## Backword step
