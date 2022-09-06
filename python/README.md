@@ -1,11 +1,39 @@
 # implementation Deatils
+We consider loss functions such that $\delta_i$ is represented as 
 
+$$ \delta_i(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
+
+and $\delta_i$ is continuoudly differentiable. Here, $\mathbb{I}[\bullet]$ is the indicator function.
+
+Abstract DeltaFunc class has
 ```
 class DeltaFunc
-```
+  
+  def forward
+  def backward
+  def find_min
+```  
 
+For find_min we need
+
+```
+def calc_derivative_at(t)
+```
+This method computes $\delta'(k_t)$ for given $t$ 
+
+
+```
+def calc_root_of(t)   
+```
+This method finds a root of $g_t'(x)=0$
 
 ## case of squared loss
+
+```
+class DeltaSquared(DeltaFunc)
+  
+```
+
 
 ### Forward step
 
