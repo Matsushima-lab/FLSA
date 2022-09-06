@@ -11,6 +11,17 @@ Output: Solution of
 $$x^* = \mathop{\mathrm{argmin}}\limits_{x= (x_1,\ldots,x_n) \in \mathbb{R}^n} \sum_{i=1}^n \ell(x_i,y_i) + \lambda \sum_{i=1}^{n-1}|x_{i}-x_{i+1}|$$
 
 in $\mathbb{R}^n$
+
+# Usage
+Example:
+```
+>>> import flsa_dp
+>>> y = [0,1]
+>>> λ = 0.5
+>>> x = flsa_dp.solve(y, λ, "squared")
+[0.5, 0.5]
+```
+
 # Algorithm
 The algorithm is based on dynamic programming and consists of forawd and backward step
 
@@ -34,3 +45,19 @@ $$x_n^* = \mathop{\mathrm{argmin}}_{x}\  \delta_n (x)$$
 From $i=n-1,\ldots,1$, we compute
 
 $$x_i^* = \mathop{\mathrm{argmin}}\limits_{x} \ \delta(x) + \lambda |x - x_{i+1}^*| $$
+
+# Implementation Details
+
+## Class for Delta function
+
+Class for function $\delta$ has to be implemented for each loss.
+
+Abstract Class of function $\delta$ requires:
+```
+forward
+backward
+find_min
+```
+
+
+
