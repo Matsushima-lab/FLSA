@@ -18,8 +18,6 @@ class DeltaFunc:
         Args:
         Return:beta
         """
-
-        print(next_beta, self.bp, self.bm)
         return max(min(next_beta, self.bp), self.bm)
         """
         self.b is a float or a set of float that satisfies delta' = +-lambda
@@ -182,8 +180,8 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
         delta_squared[i + 1] = delta_squared[i].forward(lamb, y[i], y[i + 1])
         print(f'delta_squared[{i + 1}]:', vars(delta_squared[i+1]))
     beta[n - 1] = delta_squared[n - 1].find_min()
-    print(beta[n-1])
-    for i in range(n - 1, 0):
+    print("backward!!")
+    for i in range(n - 1, 0, -1):
         beta[i - 1] = delta_squared[i].backward(next_beta=beta[i])
     return beta
 
