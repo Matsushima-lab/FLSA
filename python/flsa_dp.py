@@ -63,8 +63,8 @@ class DeltaSquared(DeltaFunc):
         """
 
         super().__init__(bm, bp, knots)
-        self.a_b_list = a_b_list
-        self.a_c_list = a_c_list
+        self.a_b_list = a_b_list #list of slopes
+        self.a_c_list = a_c_list #list of intercepts
 
     def forward(self, lamb: float, yi: float, next_yi: float) -> DeltaSquared:
         """
