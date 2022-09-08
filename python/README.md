@@ -1,3 +1,14 @@
+# Implementation Details
+The key for the efficiency is to deal with $\delta_i$ defined as
+
+$$ \delta_1(x) = \ell(x,y_1) $$
+
+and
+
+$$\delta_i (x) = \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \ell(x,y_i) + \lambda |x-x_{i-1}|$$
+
+for $i=2,\ldots ,n$.
+
 We consider loss functions such that $\delta_i$ is represented as 
 
 $$ \delta_i(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
@@ -49,7 +60,7 @@ def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
 
 # Implementation Deatils for Delta functions
 
-Information on $g_t$s are stored in cocrete classes. 
+Information on $g_t$ s are stored in cocrete classes. 
 
 ### Find_min step
 1. Find $t'$ such that $\delta_n(k_{t'}) \le 0 < \delta_n(k_{t'+1})$, i.e., `derivative_at(t)` returns non-negative value 
@@ -74,8 +85,6 @@ def find_min(self):
             break
     return self.__calc_inverse(i,0)
 ```
-### Backward step
-
 ### Forward step
 To update the infomation on $g$
 
@@ -121,6 +130,14 @@ def forward(self, λ, y):
     return next
 ```
 
+### Backward step
+
+The solution of
+
+$$ \mathop{\mathrm{argmin}}\ \delta_i(x) + \lambda | x-x_{i+1}|$$
+
+is either $x_{i+1}$ or a point in which $\delta'_i(x) = \pm \lambda$.
+
 ## Case of squared loss
 
 For `class DeltaSquared(DeltaFunc)` we see $\delta_1(x) = \ell(x,y_1) = (x-y_1)^2$ and 
@@ -142,15 +159,21 @@ class DeltaSquared(DeltaFunc):
     self.coef_b = [-2 * y]
 ```
 for $(a_t),(b_t)$
-### Forward step
-1. Initialize $\delta_1(x) = \ell(x,y_1) = (x-y_1)^2$
-2. For $t=2,\ldots,n$,
+
+Since $(a_t x^2 + b_t x + c_t )' = 2a_t x+ b_t$, `__calc_derivative_at(t)` can be implemented by $O(1)$.
+
 ```python
-knots = [bm] + knots[i:j] + [bp] 
-coef_a = [coef_am] + coef_a[i:j] + [coef_ap]
-coef_b = [coef_bm] + coef_b[i:j] + [coef_bp]
+def __calc_derivative_at(t):
+    return 2*self.coef_a[t] + self.coef_b[t]  
+
 ```
-Here, .......
+Since $(a_t x^2 + b_t x + c_t )' = d \Leftrightarrow x = (d -b_t)/ 2a_t$, `__calc_inverse`can be implemented by $O(1)$.
+```python
+def __calc_inverse(t,d):
+    return (self.coef_b[t]-d)/2*self.coef_a[t]   
+
+```
+
 
 
 
