@@ -1,16 +1,19 @@
 # FLSA
 Generic implementation of the Fused Lasso signal operator 
 
-# Mathematical discription
+# Mathematical description
 Input: 
 
 $$y = (y_1,\ldots,y_n) \in \mathbb{R}^n, \ell: \mathbb{R} \times \mathbb{R} \to \mathbb{R}^+ , \lambda \in \mathbb{R}^+$$ 
 
-Output: Solution of
+Output: Solution of fused lasso problem $x^*\in\mathbbb{R}-n$ defined as 
 
-$$x^* = \mathop{\mathrm{argmin}}\limits_{x= (x_1,\ldots,x_n) \in \mathbb{R}^n} \sum_{i=1}^n \ell(x_i,y_i) + \lambda \sum_{i=1}^{n-1}|x_{i}-x_{i+1}|$$
+$$\mathop{\mathrm{argmin}}\limits_{x= (x_1,\ldots,x_n) \in \mathbb{R}^n} \sum_{i=1}^n \ell(x_i,y_i) + \lambda \sum_{i=1}^{n-1}|x_{i}-x_{i+1}|.$$
 
-in $\mathbb{R}^n$
+# Implementation
+
+Class for function $\delta$ has to be implemented for each loss.
+Currently, a class for squared loss $\ell(x,y) = (x-y)^2$ and logistic loss $\ell(x,y) = -\log(1+\exp(-yx))$ are going to be implemented.
 
 # Usage
 Example:
@@ -45,9 +48,3 @@ $$x_n^* = \mathop{\mathrm{argmin}}_{x\in \mathbb{R}}\  \delta_n (x)$$
 From $i=n-1,\ldots,1$, we compute
 
 $$x_i^* = \mathop{\mathrm{argmin}}\limits_{x\in \mathbb{R}} \ \delta(x) + \lambda |x - x_{i+1}^*| $$
-
-# Implementation
-
-Class for function $\delta$ has to be implemented for each loss.
-Currently, a class for squared loss $\ell(x,y) = (x-y)^2$ is going to be implemented.
-
