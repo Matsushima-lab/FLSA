@@ -26,7 +26,8 @@ Example:
 ```
 
 # Algorithm
-The algorithm is based on dynamic programming and consists of forawd and backward step
+The algorithm is based on dynamic programming and consists of forawd and backward step. 
+The key for the efficiency is to deal with $\delta_i:\mathbb{R}\to\mathbb{R}$ for $i=1,\ldots,n$ defined in below.
 
 ## Forward step
 As an initialization, we set 
