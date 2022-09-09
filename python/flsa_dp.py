@@ -1,6 +1,5 @@
 from __future__ import annotations
 from colorsys import yiq_to_rgb
-import numpy as np
 
 from turtle import forward
 
@@ -17,8 +16,8 @@ class DeltaFunc:
         Args:
         Return:beta
         """
-        new_knots = self.new_knots()
-        return max(min(next_beta, new_knots[1]), new_knots[0])
+        bm, bp = self.new_knots()
+        return max(min(next_beta, bp), bm)
         """
         self.b is a float or a set of float that satisfies delta' = +-lambda
         Calculated in the process of "forward" method
@@ -124,6 +123,7 @@ class DeltaSquared(DeltaFunc):
                     new_knot_line_m = (self.slopes[i], self.intercepts[i])
                     reached_mlamb = True
                     break
+            #if all knots are under -lamb
             if (i == self.knots_len-1 and reached_mlamb == False): none_survived = True
 
             reached_plamb = False
@@ -138,6 +138,7 @@ class DeltaSquared(DeltaFunc):
                     new_knot_line_p = (self.slopes[i], self.intercepts[i])
                     reached_plamb = True
                     break
+            #if all knots are beyond +lamb
             if (i == 1 and reached_plamb == False): none_survived = True
 
 
