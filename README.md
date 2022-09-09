@@ -4,11 +4,11 @@ Generic implementation of the Fused Lasso signal operator
 # Mathematical description
 Input: 
 
-$$y = (y_1,\ldots,y_n) \in \mathbb{R}^n, \ell: \mathbb{R} \times \mathbb{R} \to \mathbb{R}^+ , \lambda \in \mathbb{R}^+$$ 
+$$y = (y_0,\ldots,y_{n-1}) \in \mathbb{R}^n, \ell: \mathbb{R} \times \mathbb{R} \to \mathbb{R}^+ , \lambda \in \mathbb{R}^+$$ 
 
 Output: Solution of fused lasso problem $x^*\in\mathbb{R}^n$ defined as 
 
-$$x^*=\mathop{\mathrm{argmin}}\limits_{x= (x_1,\ldots,x_n) \in \mathbb{R}^n}\ \sum_{i=1}^n \ell(x_i,y_i) + \lambda \sum_{i=1}^{n-1}|x_{i}-x_{i+1}|.$$
+$$x^*=\mathop{\mathrm{argmin}}\limits_{x= (x_0,\ldots,x_{n-1}) \in \mathbb{R}^n}\ \sum_{i=0}^{n-1} \ell(x_i,y_i) + \lambda \sum_{i=0}^{n-2}|x_{i}-x_{i+1}|.$$
 
 # Implementation
 
@@ -28,24 +28,25 @@ Example:
 # Algorithm
 The algorithm is based on dynamic programming and consists of forawd and backward step. 
 The key for the efficiency is to deal with $\delta_i:\mathbb{R}\to\mathbb{R}$ for $i=1,\ldots,n$ defined in below.
+Usually it is done in $O(n)$, which is very efficient.
 
 ## Forward step
 As an initialization, we set 
 
-$$ \delta_1(x) = \ell(x,y_1) $$
+$$ \delta_0(x) = \ell(x,y_0) $$
 
-From $i=2,\ldots ,n$, we compute 
+From $i=1,\ldots ,n-1$, we compute 
 
 $$\delta_i (x) = \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \ell(x,y_i) + \lambda |x-x_{i-1}|$$
 
-Then, $\mathop{\mathrm{argmin}}_{x} \delta_n (x)$ is $n$-th element of a solution of the problem.
+Then, $\mathop{\mathrm{argmin}}_{x} \delta_{n-1} (x)$ is $n$-th element of a solution of the problem.
 
 ## Backword step
 
 As an initialization we get
 
-$$x_n^* = \mathop{\mathrm{argmin}}_{x\in \mathbb{R}}\  \delta_n (x)$$
+$$x_{n-1}^* = \mathop{\mathrm{argmin}}_{x\in \mathbb{R}}\  \delta_{n-1} (x)$$
 
-From $i=n-1,\ldots,1$, we compute
+From $i=n-2,\ldots,0$, we compute
 
 $$x_i^* = \mathop{\mathrm{argmin}}\limits_{x\in \mathbb{R}} \ \delta(x) + \lambda |x - x_{i+1}^*| $$
