@@ -11,17 +11,17 @@ for $i=2,\ldots ,n$.
 
 We consider loss functions such that $\delta_i$ is represented as 
 
-$$ \delta_i(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
+$$ \delta_i(x) = \sum_{t=0}^{N_{\mathrm{knot}}-1} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 
 and $\delta_i$ is continuoudly differentiable. Here, $\mathbb{I}[\bullet]$ is the indicator function.
-$-\infty = k_1 < \cdots < k_{N+1} = \infty$ are called knots.
+$-\infty = k_1 < \cdots < k_{N+1} = \infty$ are called knots. $N_{\mathrm{knot}}$ is a number of knots.
 
-Abstract `class DeltaFunc` has
+Abstract `class DeltaFunc` has (<- it should also be stored in concrete classes..)
 ```python
 knots
 knots_n
 ```
-for $(k_t)$ and $N$ as instance variables and 
+for $(k_t)$ and $N_{\mathrm{knot}}$ as instance variables and 
 
 ```python  
 def forward(self, y):  # return next delta for a given delta
@@ -38,7 +38,7 @@ def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
     delta = [None] * n
     
     # delta_1(x) = ell(x,y_1)
-    if loss == 'squared':
+    if loss == 'squared':  # <- is there better way to reduce lines?
       delta[0] = DeltaSquared(y[0]) 
     elif loss == 'logistic':
       delta[0] = DeltaLogistic(y[0]) 
@@ -111,7 +111,7 @@ $$ \delta(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 by $k_1 \gets k, g_1(x) \gets \ell(x,y)$ and $k_t \gets k_{t-t'+1},  g_t(x) \gets g_{t-t'+1}(x)$  for $t =1,\ldots, N$ in which $N \gets N - t' +1$.
 
 ```python
-def forward(self, λ, y):
+def forward(self, λ, y): #<- this should be wrong. 
     next = self.copy()
     for i in range(self.knots_n,0,-1):
         if self.__derivative_at(i) < λ:
