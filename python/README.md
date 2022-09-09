@@ -5,7 +5,7 @@ $$ \delta_0(x) = \ell(x,y_0) $$
 
 and
 
-$$\delta_i (x) = \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \ell(x,y_i) + \lambda |x-x_{i-1}|$$
+$$\delta_i (x) =\ell(x,y_i)+ \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \lambda |x-x_{i-1}|$$
 
 for $i=1,\ldots ,n-1$.
 
