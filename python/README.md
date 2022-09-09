@@ -1,27 +1,27 @@
 # Implementation Details
 The key for the efficiency is to deal with $\delta_i$ defined as
 
-$$ \delta_1(x) = \ell(x,y_1) $$
+$$ \delta_0(x) = \ell(x,y_0) $$
 
 and
 
 $$\delta_i (x) = \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \ell(x,y_i) + \lambda |x-x_{i-1}|$$
 
-for $i=2,\ldots ,n$.
+for $i=1,\ldots ,n-1$.
 
 We consider loss functions such that $\delta_i$ is represented as 
 
-$$ \delta_i(x) = \sum_{t=0}^{N_{\mathrm{knot}}-1} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
+$$ \delta_i(x) = \sum_{t=0}^{N-1} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 
 and $\delta_i$ is continuoudly differentiable. Here, $\mathbb{I}[\bullet]$ is the indicator function.
-$-\infty = k_1 < \cdots < k_{N+1} = \infty$ are called knots. $N_{\mathrm{knot}}$ is a number of knots.
+$-\infty = k_0 < \cdots < k_{N} = \infty$ are called knots. $N$ is a number of knots.
 
 Abstract `class DeltaFunc` has (<- it should also be stored in concrete classes..)
 ```python
 knots
 knots_n
 ```
-for $(k_t)$ and $N_{\mathrm{knot}}$ as instance variables and 
+for $(k_t)$ and $N$ as instance variables and 
 
 ```python  
 def forward(self, y):  # return next delta for a given delta
@@ -63,7 +63,7 @@ def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
 Information on $g_t$ s are stored in cocrete classes. 
 
 ### Find_min step
-1. Find $t'$ such that $\delta_n(k_{t'}) \le 0 < \delta_n(k_{t'+1})$, i.e., `derivative_at(t)` returns non-negative value 
+1. Find $t'$ such that $\delta_n(k_{t'}) \le 0 < \delta_n(k_{t'+1})$, i.e., `__derivative_at(t)` returns non-negative value 
 2. Find $x$ such that $g'_{t'}(x) = 0$   
 
 
@@ -111,7 +111,7 @@ $$ \delta(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 by $k_1 \gets k, g_1(x) \gets \ell(x,y)$ and $k_t \gets k_{t-t'+1},  g_t(x) \gets g_{t-t'+1}(x)$  for $t =1,\ldots, N$ in which $N \gets N - t' +1$.
 
 ```python
-def forward(self, λ, y): #<- this should be wrong. 
+def forward(self, λ, y): #<- this should be wrong but roughly correct
     next = self.copy()
     for i in range(self.knots_n,0,-1):
         if self.__derivative_at(i) < λ:
@@ -137,6 +137,20 @@ The solution of
 $$ \mathop{\mathrm{argmin}}\ \delta_i(x) + \lambda | x-x_{i+1}|$$
 
 is either $x_{i+1}$ or a point in which $\delta'_i(x) = \pm \lambda$.
+
+```python
+def backward(self, x): #<- this should be wrong. 
+    for i in range(self.knots_n):
+        if self.__calc_derivatice(i) < lambda:
+            break
+    bp = self.__calc_inverse(i,+lambda)
+    for i in range(self.knots_n):
+        if self.__calc_derivatice(i) < -lambda:
+            break
+    bm = self.__calc_inverse(i,-lambda)
+    return max(min(x,bm),bp)
+```
+
 
 ## Case of squared loss
 
