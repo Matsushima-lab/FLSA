@@ -28,7 +28,7 @@ Example:
 # Algorithm
 The algorithm is based on dynamic programming and consists of forawd and backward step. 
 The key for the efficiency is to deal with $\delta_i:\mathbb{R}\to\mathbb{R}$ for $i=0,\ldots,n-1$ defined in below.
-Usually it is done in $O(n)$, which is very efficient.
+Usually it is done in $O(n)$, which is very efficient when, for example, $\ell^\star (d)=\max_{x} dx-\ell(x,y)$ can be computed in $O(1)$ for any $y$. 
 
 ## Forward step
 As an initialization, we set 
