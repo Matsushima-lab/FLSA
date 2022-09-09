@@ -37,7 +37,7 @@ $$ \delta_0(x) = \ell(x,y_0) $$
 
 From $i=1,\ldots ,n-1$, we compute 
 
-$$\delta_i (x) = \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \ell(x,y_{i-1}) + \lambda |x-x_{i-1}|$$
+$$\delta_i (x) = \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \ell(x,y_{i}) + \lambda |x-x_{i-1}|$$
 
 Then, $\mathop{\mathrm{argmin}}\nolimits_{x} \delta_{n-1}(x)$ is $n$-th element of a solution of the problem.
 
