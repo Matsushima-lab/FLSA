@@ -158,21 +158,28 @@ class DeltaSquared(DeltaFunc):
     self.coef_a = [1]
     self.coef_b = [-2 * y]
 ```
-for $(a_t),(b_t)$
+`self.coef_a` and `self.coef_b` are for $(a_t),(b_t)$.
 
-Since $(a_t x^2 + b_t x + c_t )' = 2a_t x+ b_t$, `__calc_derivative_at(t)` can be implemented by $O(1)$.
-
-```python
+Since $(a_t x^2 + b_t x + c_t)' =2a_t x+ b_t,$ `__calc_derivative_at(t)` can be implemented by $O(1)$.
+```python  
 def __calc_derivative_at(t):
-    return 2*self.coef_a[t] + self.coef_b[t]  
-
+    return 2*self.coef_a[t] * self.knots[i] + self.coef_b[t]  
 ```
-Since $(a_t x^2 + b_t x + c_t )' = d \Leftrightarrow x = (d -b_t)/ 2a_t$, `__calc_inverse`can be implemented by $O(1)$.
-```python
-def __calc_inverse(t,d):
-    return (self.coef_b[t]-d)/2*self.coef_a[t]   
 
+Since $(a_t x^2 + b_t x + c_t)' =d \Leftrightarrow x = (d - b_t)/2a_t,$ `__calc_inverse`can be implemented by $O(1)$.
+```python  
+def __calc_inverse(t):
+    return (d-self.coef_b[t])/2*self.coef_a[t]   
 ```
+
+Since $(a_t x^2 + b_t x + c_t) + (x-y)^2 = (a_t+1) x^2 + (b_t-2y)x + \mathrm{const.},$
+```python  
+def __add_loss(t,y):
+    self.coef_a[t] += 1
+    self.coef_b[t] += -2*y
+```
+
+
 
 
 
