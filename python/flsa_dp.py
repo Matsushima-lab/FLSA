@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import abstractmethod
 from colorsys import yiq_to_rgb
 import numpy as np
 
@@ -6,65 +7,14 @@ from turtle import forward
 
 
 class DeltaFunc:
+
+    basis_function_list = []
+
     def __init__(self, bm, bp, knots) -> None:
         self.bm = bm
         self.bp = bp
         self.knots = knots
         self.knots_n = len(self.knots)
-
-    # TODO -> takeda kun
-    def backward(self, next_beta):
-        """
-        Args:
-        Return:beta
-        """
-        return max(min(next_beta, self.bp), self.bm)
-        """
-        self.b is a float or a set of float that satisfies delta' = +-lambda
-        Calculated in the process of "forward" method
-        """
-
-    def forward(self, lamb: float, yi: float) -> DeltaFunc:
-        """
-        Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
-
-        Args:
-        Return; DeltaFunc
-        """
-        return DeltaFunc()
-
-    def find_min(self):
-        """ """
-        return 0
-
-
-class Deltalogistic(DeltaFunc):
-    def forward(self, lamb, yi) -> DeltaFunc:
-        pass
-
-
-class DeltaSquared(DeltaFunc):
-    def __init__(
-        self,
-        knots,
-        a_b_list,
-        a_c_list,
-        bm,
-        bp,
-    ):
-        """init function for
-            delta'(b)のi番目のknot区間について
-            delta'(b) = a_b_list[i] * b + a_c_list[i]
-
-        Args:
-            knot (_type_): _description_
-            a_b_list (_type_): _description_
-            a_c_list (_type_): _description_
-        """
-
-        super().__init__(bm, bp, knots)
-        self.a_b_list = a_b_list
-        self.a_c_list = a_c_list
 
     def forward(self, lamb: float, yi: float, next_yi: float) -> DeltaSquared:
         """
@@ -79,27 +29,13 @@ class DeltaSquared(DeltaFunc):
         """
         next_bm = yi - lamb
         next_bp = yi + lamb
-        next_knots, next_f_a_b_list, next_f_a_c_list = self.solve_next_knots(
+        next_knots, next_f_coef_list = self.solve_next_knots(
             lamb, next_bm, next_bp
         )
         next_e_ab = 1
         next_e_ac = -next_yi
-        next_a_b_list = [fab + next_e_ab for fab in next_f_a_b_list]
-        next_a_c_list = [fac + next_e_ac for fac in next_f_a_c_list]
+        next_coef_list = [(c for c in fc) for fc in next_f_coef_list]
         return DeltaSquared(next_knots, next_a_b_list, next_a_c_list, next_bm, next_bp)
-
-    def find_min(self):
-        for i in range(self.knots_n):
-            if (
-                self.calc_y_from_b(
-                    self.knots[i], self.a_b_list[i], self.a_c_list[i]
-                )
-                >= 0
-            ):
-
-                return self.calc_b_from_y(0, self.a_b_list[i], self.a_c_list[i])
-
-        return self.calc_b_from_y(0, self.a_b_list[self.knots_n], self.a_c_list[self.knots_n])
 
     def solve_next_knots(self, lamb: float, next_bm, next_bp):
         """solve the value of bs for next delta's knots. Also calculate ab and ac of the next f function
@@ -160,6 +96,92 @@ class DeltaSquared(DeltaFunc):
         next_f_a_b_list = [0] + survive_a_b_list + [0]
         next_f_a_c_list = [-lamb] + survive_a_c_list + [lamb]
         return next_knots, next_f_a_b_list, next_f_a_c_list
+
+    def find_min(self):
+        for i in range(self.knots_n):
+            if (
+                self.calc_y_from_b(
+                    self.knots[i], self.a_b_list[i], self.a_c_list[i]
+                )
+                >= 0
+            ):
+
+                return self.calc_b_from_y(0, self.a_b_list[i], self.a_c_list[i])
+
+        return self.calc_b_from_y(0, self.a_b_list[self.knots_n], self.a_c_list[self.knots_n])
+
+    # TODO -> takeda kun
+
+    def backward(self, next_beta):
+        """
+        Args:
+        Return:beta
+        """
+        return max(min(next_beta, self.bp), self.bm)
+        """
+        self.b is a float or a set of float that satisfies delta' = +-lambda
+        Calculated in the process of "forward" method
+        """
+
+    def forward(self, lamb: float, yi: float) -> DeltaFunc:
+        """
+        Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
+
+        Args:
+        Return; DeltaFunc
+        """
+        return DeltaFunc()
+
+    def find_min(self):
+        """ """
+        for i in range(self.knots_n):
+            if (
+                self.calc_y_from_b(
+                    self.knots[i], self.coef_list[i]
+                )
+                >= 0
+            ):
+
+                return self.calc_b_from_y(0, self.coef_list[i])
+
+        return self.calc_b_from_y(0, self.coef_list[self.knots_n])
+
+    @abstractmethod
+    def calc_b_from_y(self, y, coef):
+        pass
+
+    @abstractmethod
+    def calc_y_from_b(self, b, coef):
+        pass
+
+
+class Deltalogistic(DeltaFunc):
+    def forward(self, lamb, yi) -> DeltaFunc:
+        pass
+
+
+class DeltaSquared(DeltaFunc):
+    basis_function_list = [lambda x:x, 1]
+
+    def __init__(
+        self,
+        knots,
+        coef_list,
+        bm,
+        bp,
+    ):
+        """init function for
+            delta'(b)のi番目のknot区間について
+            delta'(b) = a_b_list[i] * b + a_c_list[i]
+
+        Args:
+            knot (_type_): _description_
+            a_b_list (_type_): _description_
+            a_c_list (_type_): _description_
+        """
+
+        super().__init__(bm, bp, knots)
+        self.coef_list = coef_list
 
     def calc_y_from_b(self, b, ab, ac):
         return b * ab + ac
