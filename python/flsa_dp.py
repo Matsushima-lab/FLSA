@@ -16,6 +16,60 @@ class DeltaFunc:
         self.knots = knots
         self.knots_n = len(self.knots)
 
+    # TODO -> takeda kun
+    def backward(self, next_beta):
+        """
+        Args:
+        Return:beta
+        """
+        return max(min(next_beta, self.bp), self.bm)
+        """
+        self.b is a float or a set of float that satisfies delta' = +-lambda
+        Calculated in the process of "forward" method
+        """
+
+    def forward(self, lamb: float, yi: float) -> DeltaFunc:
+        """
+        Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
+
+        Args:
+        Return; DeltaFunc
+        """
+        return DeltaFunc()
+
+    def find_min(self):
+        """ """
+        return 0
+
+
+class Deltalogistic(DeltaFunc):
+    def forward(self, lamb, yi) -> DeltaFunc:
+        pass
+
+
+class DeltaSquared(DeltaFunc):
+    def __init__(
+        self,
+        knots,
+        a_b_list,
+        a_c_list,
+        bm,
+        bp,
+    ):
+        """init function for
+            delta'(b)のi番目のknot区間について
+            delta'(b) = a_b_list[i] * b + a_c_list[i]
+
+        Args:
+            knot (_type_): _description_
+            a_b_list (_type_): _description_
+            a_c_list (_type_): _description_
+        """
+
+        super().__init__(bm, bp, knots)
+        self.a_b_list = a_b_list  # list of slopes
+        self.a_c_list = a_c_list  # list of intercepts
+
     def forward(self, lamb: float, yi: float, next_yi: float) -> DeltaSquared:
         """
 
