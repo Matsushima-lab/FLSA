@@ -1,13 +1,49 @@
 # Implementation Details
-The key for the efficiency is to deal with $\delta_i$ defined as
+Abstract `class DeltaFunc` has
 
-$$ \delta_0(x) = \ell(x,y_0) $$
+```python  
+class DeltaFunc:
+    def forward(self, y):  # return next delta for a given delta
+    def backward(self, b): # return previous b for a given b
+    def find_min(self): # find a root of delta(x) = 0
+```  
+for virtual methods.
 
-and
+Then `solve` can be written as follows:
+```python  
+class DeltaFunc:
+    def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
+        n = y.size
+        x = [np.nan] * n
+        delta = [None] * n
 
-$$\delta_i (x) =\ell(x,y_i)+ \min_{x_{i-1}\in \mathbb{R}}\ \delta_{i-1}(x_{i-1}) + \lambda |x-x_{i-1}|$$
+        # Forward Step    
+        delta[0] = DeltaFunc(loss, y[0]) # delta_0(x) = ell(x,y_0)
+        for i in range(n - 1):
+            delta[i + 1] = delta[i].forward(lamb, y[i], y[i + 1])
 
-for $i=1,\ldots ,n-1$.
+        # Backward Step
+        x[n - 1] = delta[n - 1].find_min()     # Find_min Step
+        for i in range(n - 1, 0, -1):
+            x[i - 1] = delta[i].backward(x[i])
+
+        return x
+```  
+
+For differnt losses, we need to create different concrete classes that inherit DeltaFunc:
+```python
+class DeltaFunc:
+    def __init__(self, loss, y0):
+        if loss == 'squared': 
+            return DeltaSquared(y[0]) 
+        elif loss == 'logistic':
+            return DeltaLogistic(y[0]) 
+        else:
+            raise RuntimeError('Invalid Loss Name!!!')
+
+```
+
+# Implementation Deatils for Delta functions
 
 We consider loss functions such that $\delta_i$ is represented as 
 
@@ -15,51 +51,13 @@ $$ \delta_i(x) = \sum_{t=0}^{N-1} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 
 and $\delta_i$ is continuoudly differentiable. Here, $\mathbb{I}[\bullet]$ is the indicator function.
 $-\infty = k_0 < \cdots < k_{N} = \infty$ are called knots. $N$ is a number of knots.
+has (<- it should also be stored in concrete classes..)
 
-Abstract `class DeltaFunc` has (<- it should also be stored in concrete classes..)
 ```python
 knots
 knots_n
 ```
 for $(k_t)$ and $N$ as instance variables and 
-
-```python  
-def forward(self, y):  # return next delta for a given delta
-def backward(self, b): # return previous b for a given b
-def find_min(self): # find a root of delta(x) = 0
-```  
-for virtual methods.
-
-Then `solve` can be written as follows:
-```python  
-def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
-    n = y.size
-    x = [0] * n
-    delta = [None] * n
-    
-    # delta_1(x) = ell(x,y_1)
-    if loss == 'squared':  # <- is there better way to reduce lines?
-      delta[0] = DeltaSquared(y[0]) 
-    elif loss == 'logistic':
-      delta[0] = DeltaLogistic(y[0]) 
-    else:
-      print('Invalid loss')
-
-    # Forward Step
-    for i in range(n - 1):
-        delta[i + 1] = delta[i].forward(lamb, y[i], y[i + 1])
-    
-    # Find_min Step
-    x[n - 1] = delta[n - 1].find_min()
-    
-    # Backward Step
-    for i in range(n - 1, 0, -1):
-        x[i - 1] = delta[i].backward(x[i])
-    return x
-```  
-
-# Implementation Deatils for Delta functions
-
 Information on $g_t$ s are stored in cocrete classes. 
 
 ### Find_min step
