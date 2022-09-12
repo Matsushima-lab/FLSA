@@ -10,11 +10,12 @@ class DeltaFunc:
 
     basis_function_list = []
 
-    def __init__(self, bm, bp, knots) -> None:
+    def __init__(self, bm, bp, knots, coef_list) -> None:
         self.bm = bm
         self.bp = bp
         self.knots = knots
         self.knots_n = len(self.knots)
+        self.coef_list = coef_list
 
     # TODO -> takeda kun
     def backward(self, next_beta):
@@ -28,70 +29,24 @@ class DeltaFunc:
         Calculated in the process of "forward" method
         """
 
-    def forward(self, lamb: float, yi: float) -> DeltaFunc:
+    def forward(self, lamb: float, yi: float, next_yi: float) -> DeltaFunc:
         """
         Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
 
         Args:
         Return; DeltaFunc
         """
-        return DeltaFunc()
-
-    def find_min(self):
-        """ """
-        return 0
-
-
-class Deltalogistic(DeltaFunc):
-    def forward(self, lamb, yi) -> DeltaFunc:
-        pass
-
-
-class DeltaSquared(DeltaFunc):
-    def __init__(
-        self,
-        knots,
-        a_b_list,
-        a_c_list,
-        bm,
-        bp,
-    ):
-        """init function for
-            delta'(b)のi番目のknot区間について
-            delta'(b) = a_b_list[i] * b + a_c_list[i]
-
-        Args:
-            knot (_type_): _description_
-            a_b_list (_type_): _description_
-            a_c_list (_type_): _description_
-        """
-
-        super().__init__(bm, bp, knots)
-        self.a_b_list = a_b_list  # list of slopes
-        self.a_c_list = a_c_list  # list of intercepts
-
-    def forward(self, lamb: float, yi: float, next_yi: float) -> DeltaSquared:
-        """
-
-        Args:
-            lamb (float): hiperparameter lambda
-            yi (float): y[i]
-            next_yi (float): y[i+1]
-
-        Returns:
-            DeltaSquared: next delta function
-        """
-        next_bm = yi - lamb
-        next_bp = yi + lamb
         next_knots, next_f_coef_list = self.solve_next_knots(
-            lamb, next_bm, next_bp
+            lamb
         )
-        next_e_ab = 1
-        next_e_ac = -next_yi
-        next_coef_list = [(c for c in fc) for fc in next_f_coef_list]
-        return DeltaSquared(next_knots, next_a_b_list, next_a_c_list, next_bm, next_bp)
+        print(next_f_coef_list)
+        e_coef = self.get_e_coef(next_yi)
+        next_coef_list = [tuple([c + e for c, e in zip(fc, e_coef)])
+                          for fc in next_f_coef_list]
 
-    def solve_next_knots(self, lamb: float, next_bm, next_bp):
+        return DeltaSquared(bm=next_knots[0], bp=next_knots[-1], knots=next_knots, coef_list=next_coef_list)
+
+    def solve_next_knots(self, lamb: float):
         """solve the value of bs for next delta's knots. Also calculate ab and ac of the next f function
 
         Args:
@@ -106,88 +61,46 @@ class DeltaSquared(DeltaFunc):
             for i in range(self.knots_n):
                 if (
                     self.calc_y_from_b(
-                        self.knots[i], self.a_b_list[i], self.a_c_list[i]
+                        self.knots[i], self.coef_list[i]
                     )
-                    > next_bm
+                    > -lamb
                 ):
                     left_survive_knot_index = i
-                    new_knot_line_m = (self.a_b_list[i], self.a_c_list[i])
+                    new_knot_line_m = self.coef_list[i]
                     break
             for i in range(self.knots_n, 0, -1):
                 if (
                     self.calc_y_from_b(
-                        self.knots[i - 1], self.a_b_list[i], self.a_c_list[i]
+                        self.knots[i - 1], self.coef_list[i]
                     )
-                    < next_bp
+                    < lamb
                 ):
                     right_survive_knot_index = i - 1
-                    new_knot_line_p = (self.a_b_list[i], self.a_c_list[i])
+                    new_knot_line_p = self.coef_list[i]
                     break
             survive_knots = self.knots[
                 left_survive_knot_index: right_survive_knot_index + 1
             ]
-            survive_a_b_list = self.a_b_list[
-                left_survive_knot_index: right_survive_knot_index + 2
-            ]
-            survive_a_c_list = self.a_c_list[
+            survive_coef_list = self.coef_list[
                 left_survive_knot_index: right_survive_knot_index + 2
             ]
 
         else:
-            new_knot_line_m = (self.a_b_list[0], self.a_c_list[0])
-            new_knot_line_p = (self.a_b_list[0], self.a_c_list[0])
+            new_knot_line_p = new_knot_line_m = self.coef_list[0]
             survive_knots = []
-            survive_a_b_list = [self.a_b_list[0]]
-            survive_a_c_list = [self.a_c_list[0]]
+            survive_coef_list = [self.coef_list[0]]
 
-        left_new_knot = self.calc_b_from_y(
-            next_bm, new_knot_line_m[0], new_knot_line_m[1]
+        next_bm = self.calc_b_from_y(
+            -lamb, new_knot_line_m
         )
-        right_new_knot = self.calc_b_from_y(
-            next_bp, new_knot_line_p[0], new_knot_line_p[1]
+        next_bp = self.calc_b_from_y(
+            lamb, new_knot_line_p
         )
-        next_knots = [left_new_knot] + survive_knots + [right_new_knot]
-        next_f_a_b_list = [0] + survive_a_b_list + [0]
-        next_f_a_c_list = [-lamb] + survive_a_c_list + [lamb]
-        return next_knots, next_f_a_b_list, next_f_a_c_list
+        next_knots = [next_bm] + survive_knots + [next_bp]
+        next_f_coef_list = [(0, -lamb)] + survive_coef_list + [(0, lamb)]
+        return next_knots, next_f_coef_list
 
     def find_min(self):
-        for i in range(self.knots_n):
-            if (
-                self.calc_y_from_b(
-                    self.knots[i], self.a_b_list[i], self.a_c_list[i]
-                )
-                >= 0
-            ):
-
-                return self.calc_b_from_y(0, self.a_b_list[i], self.a_c_list[i])
-
-        return self.calc_b_from_y(0, self.a_b_list[self.knots_n], self.a_c_list[self.knots_n])
-
-    # TODO -> takeda kun
-
-    def backward(self, next_beta):
-        """
-        Args:
-        Return:beta
-        """
-        return max(min(next_beta, self.bp), self.bm)
-        """
-        self.b is a float or a set of float that satisfies delta' = +-lambda
-        Calculated in the process of "forward" method
-        """
-
-    def forward(self, lamb: float, yi: float) -> DeltaFunc:
-        """
-        Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
-
-        Args:
-        Return; DeltaFunc
-        """
-        return DeltaFunc()
-
-    def find_min(self):
-        """ """
         for i in range(self.knots_n):
             if (
                 self.calc_y_from_b(
@@ -195,10 +108,13 @@ class DeltaSquared(DeltaFunc):
                 )
                 >= 0
             ):
-
                 return self.calc_b_from_y(0, self.coef_list[i])
 
         return self.calc_b_from_y(0, self.coef_list[self.knots_n])
+
+    @abstractmethod
+    def get_e_coef(self, next_yi):
+        pass
 
     @abstractmethod
     def calc_b_from_y(self, y, coef):
@@ -215,14 +131,14 @@ class Deltalogistic(DeltaFunc):
 
 
 class DeltaSquared(DeltaFunc):
-    basis_function_list = [lambda x:x, 1]
+    basis_function_list = [lambda x:x, lambda x:1]
 
     def __init__(
         self,
-        knots,
-        coef_list,
         bm,
         bp,
+        knots,
+        coef_list,
     ):
         """init function for
             delta'(b)のi番目のknot区間について
@@ -234,15 +150,17 @@ class DeltaSquared(DeltaFunc):
             a_c_list (_type_): _description_
         """
 
-        super().__init__(bm, bp, knots)
-        self.coef_list = coef_list
+        super().__init__(bm=bm, bp=bp, knots=knots, coef_list=coef_list)
 
-    def calc_y_from_b(self, b, ab, ac):
-        return b * ab + ac
+    def calc_y_from_b(self, b, coef):
+        return sum([c * bf(b) for bf, c in zip(self.basis_function_list, coef)])
 
-    def calc_b_from_y(self, y, ab, ac):
-        assert ab != 0
-        return (y - ac) / ab
+    def calc_b_from_y(self, y, coef):
+        assert coef[0] != 0
+        return (y - coef[1]) / coef[0]
+
+    def get_e_coef(self, next_yi):
+        return (1, -next_yi)
 
 
 def main(y: np.array, lamb: float, loss: str = None) -> np.array:
@@ -250,7 +168,7 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
     delta_squared = [None] * n
     beta = [0] * n
     delta_squared[0] = DeltaSquared(
-        knots=[], bm=None, bp=None, a_b_list=[1], a_c_list=[0]
+        bm=None, bp=None, knots=[], coef_list=[(1, -y[0])]
     )
     for i in range(n - 1):
         delta_squared[i + 1] = delta_squared[i].forward(lamb, y[i], y[i + 1])
@@ -263,5 +181,5 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
 
 
 if __name__ == "__main__":
-    beta = main(np.array([0, 1]), 0.5)
+    beta = main(np.array([1, 0]), 0.5)
     print(beta)
