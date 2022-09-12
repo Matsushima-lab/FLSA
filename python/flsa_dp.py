@@ -1,12 +1,14 @@
 from __future__ import annotations
 from abc import abstractmethod
 from colorsys import yiq_to_rgb
+from typing import overload
 import numpy as np
+from abc import ABC, abstractmethod
 
 from turtle import forward
 
 
-class DeltaFunc:
+class DeltaFunc(ABC):
 
     basis_function_list = []
 
@@ -16,6 +18,7 @@ class DeltaFunc:
         self.knots = knots
         self.knots_n = len(self.knots)
         self.coef_list = coef_list
+        assert(len(self.coef_list) == self.knots_n + 1)
 
     # TODO -> takeda kun
     def backward(self, next_beta):
@@ -39,12 +42,10 @@ class DeltaFunc:
         next_knots, next_f_coef_list = self.solve_next_knots(
             lamb
         )
-        print(next_f_coef_list)
-        e_coef = self.get_e_coef(next_yi)
-        next_coef_list = [tuple([c + e for c, e in zip(fc, e_coef)])
+        loss = self.get_e_coef(next_yi)
+        next_coef_list = [tuple([c + e for c, e in zip(fc, loss)])
                           for fc in next_f_coef_list]
-
-        return DeltaSquared(bm=next_knots[0], bp=next_knots[-1], knots=next_knots, coef_list=next_coef_list)
+        return (next_knots[0], next_knots[-1], next_knots, next_coef_list)
 
     def solve_next_knots(self, lamb: float):
         """solve the value of bs for next delta's knots. Also calculate ab and ac of the next f function
@@ -57,71 +58,45 @@ class DeltaFunc:
         Returns:
             _type_: _description_
         """
-        if len(self.knots) > 0:
-            for i in range(self.knots_n):
-                if (
-                    self.calc_y_from_b(
-                        self.knots[i], self.coef_list[i]
-                    )
-                    > -lamb
-                ):
-                    left_survive_knot_index = i
-                    new_knot_line_m = self.coef_list[i]
-                    break
-            for i in range(self.knots_n, 0, -1):
-                if (
-                    self.calc_y_from_b(
-                        self.knots[i - 1], self.coef_list[i]
-                    )
-                    < lamb
-                ):
-                    right_survive_knot_index = i - 1
-                    new_knot_line_p = self.coef_list[i]
-                    break
-            survive_knots = self.knots[
-                left_survive_knot_index: right_survive_knot_index + 1
-            ]
-            survive_coef_list = self.coef_list[
-                left_survive_knot_index: right_survive_knot_index + 2
-            ]
 
-        else:
-            new_knot_line_p = new_knot_line_m = self.coef_list[0]
-            survive_knots = []
-            survive_coef_list = [self.coef_list[0]]
+        for i in range(self.knots_n, 0, -1):
+            if (self.calc_derivative_at(i - 1) < lamb):
+                break
+        next_bp = self.calc_inverse(i, lamb)
+        right_survive_knot_index = i
 
-        next_bm = self.calc_b_from_y(
-            -lamb, new_knot_line_m
-        )
-        next_bp = self.calc_b_from_y(
-            lamb, new_knot_line_p
-        )
+        for i in range(self.knots_n):
+            if (self.calc_derivative_at(i) > -lamb):
+                break
+        next_bm = self.calc_inverse(i, -lamb)
+        left_survive_knot_index = i
+
+        survive_knots = self.knots[
+            left_survive_knot_index: right_survive_knot_index
+        ]
+        survive_coef_list = self.coef_list[
+            left_survive_knot_index: right_survive_knot_index + 1
+        ]
         next_knots = [next_bm] + survive_knots + [next_bp]
         next_f_coef_list = [(0, -lamb)] + survive_coef_list + [(0, lamb)]
         return next_knots, next_f_coef_list
 
     def find_min(self):
-        for i in range(self.knots_n):
-            if (
-                self.calc_y_from_b(
-                    self.knots[i], self.coef_list[i]
-                )
-                >= 0
-            ):
-                return self.calc_b_from_y(0, self.coef_list[i])
-
-        return self.calc_b_from_y(0, self.coef_list[self.knots_n])
+        for t in range(self.knots_n):
+            if (self.calc_derivative_at(t) >= 0):
+                return self.calc_inverse(t, 0)
+        return self.calc_inverse(self.knots_n, 0)
 
     @abstractmethod
     def get_e_coef(self, next_yi):
         pass
 
     @abstractmethod
-    def calc_b_from_y(self, y, coef):
+    def calc_inverse(self, t, d):
         pass
 
     @abstractmethod
-    def calc_y_from_b(self, b, coef):
+    def calc_derivative_at(self, t):
         pass
 
 
@@ -149,15 +124,14 @@ class DeltaSquared(DeltaFunc):
             a_b_list (_type_): _description_
             a_c_list (_type_): _description_
         """
-
         super().__init__(bm=bm, bp=bp, knots=knots, coef_list=coef_list)
 
-    def calc_y_from_b(self, b, coef):
-        return sum([c * bf(b) for bf, c in zip(self.basis_function_list, coef)])
+    def calc_derivative_at(self, t):
+        return sum([c * bf(self.knots[t]) for bf, c in zip(self.basis_function_list, self.coef_list[t])])
 
-    def calc_b_from_y(self, y, coef):
-        assert coef[0] != 0
-        return (y - coef[1]) / coef[0]
+    def calc_inverse(self, t, d):
+        assert self.coef_list[t][0] != 0
+        return (d - self.coef_list[t][1]) / self.coef_list[t][0]
 
     def get_e_coef(self, next_yi):
         return (1, -next_yi)
@@ -168,10 +142,13 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
     delta_squared = [None] * n
     beta = [0] * n
     delta_squared[0] = DeltaSquared(
-        bm=None, bp=None, knots=[], coef_list=[(1, -y[0])]
+        bm=None, bp=None, knots=[10000], coef_list=[(1, -y[0]), (1, -y[0])]
     )
     for i in range(n - 1):
-        delta_squared[i + 1] = delta_squared[i].forward(lamb, y[i], y[i + 1])
+        bm, bp, knots, coef_list = delta_squared[i].forward(
+            lamb, y[i], y[i + 1])
+        delta_squared[i +
+                      1] = DeltaSquared(bm=bm, bp=bp, knots=knots, coef_list=coef_list)
         print(f'delta_squared[{i + 1}]:', vars(delta_squared[i+1]))
     beta[n - 1] = delta_squared[n - 1].find_min()
     print("backward!!")
@@ -181,5 +158,6 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
 
 
 if __name__ == "__main__":
-    beta = main(np.array([1, 0]), 0.5)
+    beta = main(np.array([1, 0, 2, 0, 2, 1]), 0.5)
+
     print(beta)
