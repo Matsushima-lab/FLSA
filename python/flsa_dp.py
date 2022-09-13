@@ -18,7 +18,7 @@ class DeltaFunc(ABC):
         self.knots = knots
         self.knots_n = len(self.knots)
         self.coef_list = coef_list
-        assert(len(self.coef_list) == self.knots_n + 1)
+        assert len(self.coef_list) == self.knots_n + 1
 
     # TODO -> takeda kun
     def backward(self, next_beta):
@@ -39,12 +39,11 @@ class DeltaFunc(ABC):
         Args:
         Return; DeltaFunc
         """
-        next_knots, next_f_coef_list = self.solve_next_knots(
-            lamb
-        )
-        loss = self.get_e_coef(next_yi)
-        next_coef_list = [tuple([c + e for c, e in zip(fc, loss)])
-                          for fc in next_f_coef_list]
+        next_knots, next_f_coef_list = self.solve_next_knots(lamb)
+        loss = self.get_loss(next_yi)
+        next_coef_list = [
+            tuple([c + e for c, e in zip(fc, loss)]) for fc in next_f_coef_list
+        ]
         return (next_knots[0], next_knots[-1], next_knots, next_coef_list)
 
     def solve_next_knots(self, lamb: float):
@@ -60,22 +59,20 @@ class DeltaFunc(ABC):
         """
 
         for i in range(self.knots_n, 0, -1):
-            if (self.calc_derivative_at(i - 1) < lamb):
+            if self.calc_derivative_at(i - 1) < lamb:
                 break
         next_bp = self.calc_inverse(i, lamb)
         right_survive_knot_index = i
 
         for i in range(self.knots_n):
-            if (self.calc_derivative_at(i) > -lamb):
+            if self.calc_derivative_at(i) > -lamb:
                 break
         next_bm = self.calc_inverse(i, -lamb)
         left_survive_knot_index = i
 
-        survive_knots = self.knots[
-            left_survive_knot_index: right_survive_knot_index
-        ]
+        survive_knots = self.knots[left_survive_knot_index:right_survive_knot_index]
         survive_coef_list = self.coef_list[
-            left_survive_knot_index: right_survive_knot_index + 1
+            left_survive_knot_index : right_survive_knot_index + 1
         ]
         next_knots = [next_bm] + survive_knots + [next_bp]
         next_f_coef_list = [(0, -lamb)] + survive_coef_list + [(0, lamb)]
@@ -83,12 +80,12 @@ class DeltaFunc(ABC):
 
     def find_min(self):
         for t in range(self.knots_n):
-            if (self.calc_derivative_at(t) >= 0):
+            if self.calc_derivative_at(t) >= 0:
                 return self.calc_inverse(t, 0)
         return self.calc_inverse(self.knots_n, 0)
 
     @abstractmethod
-    def get_e_coef(self, next_yi):
+    def get_loss(self, next_yi):
         pass
 
     @abstractmethod
@@ -106,7 +103,7 @@ class Deltalogistic(DeltaFunc):
 
 
 class DeltaSquared(DeltaFunc):
-    basis_function_list = [lambda x:x, lambda x:1]
+    basis_function_list = [lambda x: x, lambda x: 1]
 
     def __init__(
         self,
@@ -127,13 +124,18 @@ class DeltaSquared(DeltaFunc):
         super().__init__(bm=bm, bp=bp, knots=knots, coef_list=coef_list)
 
     def calc_derivative_at(self, t):
-        return sum([c * bf(self.knots[t]) for bf, c in zip(self.basis_function_list, self.coef_list[t])])
+        return sum(
+            [
+                c * bf(self.knots[t])
+                for bf, c in zip(self.basis_function_list, self.coef_list[t])
+            ]
+        )
 
     def calc_inverse(self, t, d):
         assert self.coef_list[t][0] != 0
         return (d - self.coef_list[t][1]) / self.coef_list[t][0]
 
-    def get_e_coef(self, next_yi):
+    def get_loss(self, next_yi):
         return (1, -next_yi)
 
 
@@ -142,14 +144,14 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
     delta_squared = [None] * n
     beta = [0] * n
     delta_squared[0] = DeltaSquared(
-        bm=None, bp=None, knots=[10000], coef_list=[(1, -y[0]), (1, -y[0])]
+        bm=None, bp=None, knots=[np.inf], coef_list=[(1, -y[0]), (1, -y[0])]
     )
     for i in range(n - 1):
-        bm, bp, knots, coef_list = delta_squared[i].forward(
-            lamb, y[i], y[i + 1])
-        delta_squared[i +
-                      1] = DeltaSquared(bm=bm, bp=bp, knots=knots, coef_list=coef_list)
-        print(f'delta_squared[{i + 1}]:', vars(delta_squared[i+1]))
+        bm, bp, knots, coef_list = delta_squared[i].forward(lamb, y[i], y[i + 1])
+        delta_squared[i + 1] = DeltaSquared(
+            bm=bm, bp=bp, knots=knots, coef_list=coef_list
+        )
+        print(f"delta_squared[{i + 1}]:", vars(delta_squared[i + 1]))
     beta[n - 1] = delta_squared[n - 1].find_min()
     print("backward!!")
     for i in range(n - 1, 0, -1):

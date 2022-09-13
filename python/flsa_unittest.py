@@ -11,8 +11,8 @@ class ReturnTest(unittest.TestCase):
 
         args = sys.argv  # args: input, lam, output
 
-        fi = open(args[0], 'r')
-        fo = open(args[2], 'r')
+        fi = open(args[0], "r")
+        fo = open(args[2], "r")
 
         input_data = fi.read()
         output_data = fo.read()
