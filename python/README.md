@@ -52,7 +52,7 @@ class DeltaFunc:
     # Update delta(x) <- delta(x) + loss(x,y)
         pass
     @abstractmethod        
-    def __overwrite(self,bm,bp,λ):
+    def __overwrite(self,bm,bp,λ): #convolute_l1 
     # Update delta(x) <- [[x < bm]] delta(bm) -λx +  [[bm <= x <= bp]] delta(x) + [[bp < x ]] delta(bp) + λx  
         pass
 ```
