@@ -5,6 +5,7 @@ Abstract `class DeltaFunc` has
 class DeltaFunc:
     def forward(self, y):  # return next delta for a given delta
     def backward(self, b): # return previous b for a given b
+    @abstractmethod
     def find_tangency(self, s): # find argmin_x delta(x) - sx
 ```  
 for virtual methods.
@@ -42,10 +43,9 @@ class DeltaFunc:
 
 ```
 
-Concrete classes have to have the following methods implemented:
+Concrete classes have to have the following methods implemented in addition to `find_tangency(self,s)`:
 
 ```python
-
 class DeltaFunc:
     @abstractmethod
     def __add_loss(self,y):
@@ -55,9 +55,6 @@ class DeltaFunc:
     def __overwrite(self,bm,bp,λ):
     # Update delta(x) <- [[x < bm]] delta(bm) -λx +  [[bm <= x <= bp]] delta(x) + [[bp < x ]] delta(bp) + λx  
         pass
-    @abstractmethod
-    def __find_tangency(self,d):
-    # Return x that minimizes delta(x) - dx
 ```
 
 We consider loss functions such that $\delta$ is represented as 
