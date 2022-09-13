@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
   int n = atoi(argv[1]);
   double sample[n];
   for (int i = 0; i < n; i++) {
-    sample[i] = 10 * sin(i*0.1) + dist(engine);
+    sample[i] = 10 * log(i*0.1) + dist(engine);
   }
 
   /* output */
