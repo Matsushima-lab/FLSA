@@ -7,7 +7,3 @@ input3: y = 10 * sin(x) + err (length = 1000, output_lam = 0.5)
 input4: y = 10 * sin(x) + err (length = 100, output_lam = 2.0)
 input5: y = 10 * sin(x) + err (length = 1000, output_lam = 2.0)
 input6: y = 10 * sin(x) + err (length = 10000, output_lam = 2.0)
-
-input7: y = 10 * ln(x) + err (length = 10, output_lam = 0.5)
-input8: y = 10 * ln(x) + err (length = 100, output_lam = 0.5)
-input9: y = 10 * ln(x) + err (length = 1000, output_lam = 0.5)
