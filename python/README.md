@@ -5,7 +5,7 @@ Abstract `class DeltaFunc` has
 class DeltaFunc:
     def forward(self, y):  # return next delta for a given delta
     def backward(self, b): # return previous b for a given b
-    def find_tangency(self, s): # find argmin_x delta(x) + sx
+    def find_tangency(self, s): # find argmin_x delta(x) - sx
 ```  
 for virtual methods.
 
@@ -34,9 +34,9 @@ For differnt losses, we need to create different concrete classes that inherit D
 class DeltaFunc:
     def __init__(self, loss, y0):
         if loss == 'squared': 
-            return DeltaSquared(y[0]) 
+            return DeltaSquared(y[0]) # set delta(x) = (x-y)^2 
         elif loss == 'logistic':
-            return DeltaLogistic(y[0]) 
+            return DeltaLogistic(y[0]) # set delta(x) = -log(1+exp(-yx))
         else:
             raise RuntimeError('Invalid Loss Name!!!')
 
@@ -48,52 +48,49 @@ Concrete classes have to have the following methods implemented:
 
 class DeltaFunc:
     @abstractmethod
-    def __add_loss(y):
+    def __add_loss(self,y):
     # Update delta(x) <- delta(x) + loss(x,y)
         pass
     @abstractmethod        
-    def __overwrite(bm,bp,λ):
+    def __overwrite(self,bm,bp,λ):
     # Update delta(x) <- [[x < bm]] delta(bm) -λx +  [[bm <= x <= bp]] delta(x) + [[bp < x ]] delta(bp) + λx  
         pass
     @abstractmethod
-    def __find_tangency(s):
-    # Return x that minimizes delta(x) - sx
+    def __find_tangency(self,d):
+    # Return x that minimizes delta(x) - dx
 ```
 
-# Implementation Deatils for DeltaFunc
+We consider loss functions such that $\delta$ is represented as 
 
-We consider loss functions such that $\delta_i$ is represented as 
+$$ \delta(x) = \sum_{t=0}^{N-1} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 
-$$ \delta_i(x) = \sum_{t=0}^{N-1} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
-
-and $\delta_i$ is continuoudly differentiable. Here, $\mathbb{I}[\bullet]$ is the indicator function.
-$-\infty = k_0 < \cdots < k_{N} = \infty$ are called knots. $N$ is a number of knots.
-has (<- it should also be stored in concrete classes..)
+and $\delta$ is continuoudly differentiable. Here, $\mathbb{I}[\bullet]$ is the indicator function.
+$-\infty = k_0 < \cdots < k_{N} = \infty$ are called knots. There are $N+1$ knots including $-\infty$ and $\infty$.
 
 ```python
-knots
-knots_n
-```
-for $(k_t)$ and $N$ as instance variables and 
-Information on $g_t$ s are stored in cocrete classes. 
-
-
-```python
-def __add_loss(t, y):   
+def __add_loss(self, y):   
 ```
 This method updates $g_t(x) \gets g_t(x) + \ell(x,y)$ for all $t$.
 
 ```python
-def __overwrite(bm,bp,λ):   
+def __overwrite(self,bm,bp,λ):   
 ```
-This method finds $t',t''$ such that $k_{t'} < b^- < k_{t'+1}$ and $k_{t''} < b^+ < k_{t''+1}$ update 
+Let `bp,bm,λ` be $b^-,b^+,\lambda$, respectively.
+This method finds $t',t''$ such that $k_{t'} < b^- < k_{t'+1}$ and $k_{t''} < b^+ < k_{t''+1}$ and then updates 
 
 $$ \delta(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 
 by
 
-$$ g_1(x ) = g(b^-) -\lambda x,\ g_t(x) \gets g_{t - t' + 1}(x),\  g_{t'' + 1}(x) \gets g(b^+) +\lambda x, \ N\gets t'' -t' +3  $$
+$$ g_1(x ) = g(b^-) -\lambda x,\ g_t(x) \gets g_{t - t' + 1}(x),\  g_{t'' + 1}(x) \gets g(b^+) +\lambda x, \ N\gets t'' -t' + 2  $$
 
+
+```python
+def __find_tangency(self,d):   
+```
+This method returns $x$ such that 
+
+$$x = \mathop{\mathrm{argmin}}_x \delta(x) -dx$$
 
 
 ## Case of squared loss
@@ -142,6 +139,18 @@ def __add_loss(t,y):
 
 
 
+## Case of logistic loss
+For $\ell(x,y)= -\log(1+\exp(-yx))$, we see $\delta$ is a form of 
+
+$$ \sum_{t=1}^{N} \Big(a_t \log(1+\exp(x)) + b_t \log(1+\exp(-x)) + c_tx \Big) \mathbb{I} [k_t < x < k_{t+1}]. $$
 
 
+```python  
+def __add_loss(self,y):
+    if y == 1:
+        self.coef_a = [ at+1 for at in self.coef_a]
+    else:
+        self.coef_b = [ bt+1 for bt in self.coef_b]
+    
+```
 
