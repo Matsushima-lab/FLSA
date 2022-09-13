@@ -150,7 +150,7 @@ class DeltaSquared(DeltaFunc):
         return (1, -next_yi)
 
 
-def main(y: np.array, lamb: float, loss: str = None) -> np.array:
+def solver(y: np.array, lamb: float, loss: str = None) -> np.array:
     n = y.size
     delta_squared = [None] * n
     beta = [0] * n
@@ -172,5 +172,5 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
 
 
 if __name__ == "__main__":
-    beta = main(np.array([1, 0, 2, 0, 3, 1, 2]), 0.5)
+    beta = solver(np.array([1, 0, 2, 0, 3, 1, 2]), 0.5)
     print(beta)
