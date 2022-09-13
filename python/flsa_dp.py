@@ -13,6 +13,17 @@ class DeltaFunc(ABC):
     basis_function_list = []
 
     def __init__(self, bm, bp, knots, coef_list) -> None:
+        """init function for
+            delta'(b)のi番目のknot区間について
+            delta'(b) = a_b_list[i] * b + a_c_list[i]
+
+        Args:
+            bm (float): b^-. This variable will be used in backward process.
+            bp (float): b^+. This variable will be used in backward process.
+            knots (List(float)): The interval of delta function between two adjacent knots can be expressed by delta(b) = sum(coef * basis_function(b)).
+                coef and basis function is an element of coef_list and basis_function_list.
+            coef_list (List(float)): The length of coef_list is len(knots) + 1
+        """
         self.bm = bm
         self.bp = bp
         self.knots = knots
@@ -20,7 +31,6 @@ class DeltaFunc(ABC):
         self.coef_list = coef_list
         assert len(self.coef_list) == self.knots_n + 1
 
-    # TODO -> takeda kun
     def backward(self, next_beta):
         """
         Args:
@@ -32,7 +42,7 @@ class DeltaFunc(ABC):
         Calculated in the process of "forward" method
         """
 
-    def forward(self, lamb: float, yi: float, next_yi: float) -> DeltaFunc:
+    def forward(self, lamb: float, next_yi: float) -> DeltaFunc:
         """
         Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
 
@@ -72,7 +82,7 @@ class DeltaFunc(ABC):
 
         survive_knots = self.knots[left_survive_knot_index:right_survive_knot_index]
         survive_coef_list = self.coef_list[
-            left_survive_knot_index : right_survive_knot_index + 1
+            left_survive_knot_index: right_survive_knot_index + 1
         ]
         next_knots = [next_bm] + survive_knots + [next_bp]
         next_f_coef_list = [(0, -lamb)] + survive_coef_list + [(0, lamb)]
@@ -98,8 +108,7 @@ class DeltaFunc(ABC):
 
 
 class Deltalogistic(DeltaFunc):
-    def forward(self, lamb, yi) -> DeltaFunc:
-        pass
+    pass
 
 
 class DeltaSquared(DeltaFunc):
@@ -117,9 +126,11 @@ class DeltaSquared(DeltaFunc):
             delta'(b) = a_b_list[i] * b + a_c_list[i]
 
         Args:
-            knot (_type_): _description_
-            a_b_list (_type_): _description_
-            a_c_list (_type_): _description_
+            bm (float): b^-. This variable will be used in backward process.
+            bp (float): b^+. This variable will be used in backward process.
+            knots (List(float)): The interval of delta function between two adjacent knots can be expressed by delta(b) = sum(coef * basis_function(b)).
+                coef and basis function is an element of coef_list and basis_function_list.
+            coef_list (List(float)): The length of coef_list is len(knots) + 1
         """
         super().__init__(bm=bm, bp=bp, knots=knots, coef_list=coef_list)
 
@@ -147,7 +158,8 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
         bm=None, bp=None, knots=[np.inf], coef_list=[(1, -y[0]), (1, -y[0])]
     )
     for i in range(n - 1):
-        bm, bp, knots, coef_list = delta_squared[i].forward(lamb, y[i], y[i + 1])
+        bm, bp, knots, coef_list = delta_squared[i].forward(
+            lamb, y[i + 1])
         delta_squared[i + 1] = DeltaSquared(
             bm=bm, bp=bp, knots=knots, coef_list=coef_list
         )
@@ -160,6 +172,5 @@ def main(y: np.array, lamb: float, loss: str = None) -> np.array:
 
 
 if __name__ == "__main__":
-    beta = main(np.array([1, 0, 2, 0, 2, 1]), 0.5)
-
+    beta = main(np.array([1, 0, 2, 0, 3, 1, 2]), 0.5)
     print(beta)
