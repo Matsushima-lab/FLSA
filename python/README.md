@@ -5,29 +5,28 @@ Abstract `class DeltaFunc` has
 class DeltaFunc:
     def forward(self, y):  # return next delta for a given delta
     def backward(self, b): # return previous b for a given b
-    def find_min(self): # find a root of delta(x) = 0
+    def find_tangency(self, s): # find argmin_x delta(x) + sx
 ```  
 for virtual methods.
 
 Then `solve` can be written as follows:
 ```python  
-class DeltaFunc:
-    def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
-        n = y.size
-        x = [np.nan] * n
-        delta = [None] * n
+def solve(y: np.array, lamb: float, loss: str = None) -> np.array:
+    n = y.size
+    x = [np.nan] * n
+    delta = [None] * n
 
-        # Forward Step    
-        delta[0] = DeltaFunc(loss, y[0]) # delta_0(x) = ell(x,y_0)
-        for i in range(n - 1):
-            delta[i + 1] = delta[i].forward(lamb, y[i], y[i + 1])
+    # Forward Step    
+    delta[0] = DeltaFunc(loss, y[0]) # delta_0(x) = ell(x,y_0)
+    for i in range(n - 1):
+        delta[i + 1] = delta[i].forward(lamb, y[i], y[i + 1])
 
-        # Backward Step
-        x[n - 1] = delta[n - 1].find_min()     # Find_min Step
-        for i in range(n - 1, 0, -1):
-            x[i - 1] = delta[i].backward(x[i])
+    # Backward Step
+    x[n - 1] = delta[n - 1].find_tangency(0)     # Find_min Step
+    for i in range(n - 1, 0, -1):
+        x[i - 1] = delta[i].backward(x[i])
 
-        return x
+    return x
 ```  
 
 For differnt losses, we need to create different concrete classes that inherit DeltaFunc:
@@ -43,7 +42,23 @@ class DeltaFunc:
 
 ```
 
-# Implementation Deatils for Delta functions
+Concrete classes have to have the following methods implemented:
+
+```python
+
+class DeltaFunc:
+    @abstractmethod
+    def __add_loss(y):
+    # Update delta(x) <- delta(x) + loss(x,y)
+        pass
+    def __overwrite(bm,bp,λ):
+    # Update delta(x) <- [[x < bm]] delta(bm) -λx +  [[bm <= x <= bp]] delta(x) + [[bp < x ]] delta(bp) + λx  
+        pass
+    def __find_tangency(s):
+    # Return x that satisfy delta'(x) = s
+```
+
+# Implementation Deatils for DeltaFunc
 
 We consider loss functions such that $\delta_i$ is represented as 
 
