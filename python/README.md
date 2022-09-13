@@ -92,29 +92,8 @@ $$ \delta(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 
 by
 
-$$ g_1(x ) = g(b^-) -\lambda x,\ g_t \gets g_{t - t' + 1}, g_{t'' + 1}(x) \gets g(b^+) +\lambda x $$
+$$ g_1(x ) = g(b^-) -\lambda x,\ g_t(x) \gets g_{t - t' + 1}(x),\  g_{t'' + 1}(x) \gets g(b^+) +\lambda x, \ N\gets t'' -t' +3  $$
 
-
-### Backward step
-
-The solution of
-
-$$ \mathop{\mathrm{argmin}}\ \delta_i(x) + \lambda | x-x_{i+1}|$$
-
-is either $x_{i+1}$ or a point in which $\delta'_i(x) = \pm \lambda$.
-
-```python
-def backward(self, x): #<- this should be wrong. 
-    for i in range(self.knots_n):
-        if self.__calc_derivatice(i) < lambda:
-            break
-    bp = self.__calc_inverse(i,+lambda)
-    for i in range(self.knots_n):
-        if self.__calc_derivatice(i) < -lambda:
-            break
-    bm = self.__calc_inverse(i,-lambda)
-    return max(min(x,bm),bp)
-```
 
 
 ## Case of squared loss
