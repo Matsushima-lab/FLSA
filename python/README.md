@@ -104,7 +104,7 @@ which is a form of
 $$ \sum_{t=1}^{N} (a_t x^2 + b_t x + c_t )  [k_t < x < k_{t+1}]. $$
 
 It turns out $\delta_i(x)$ in general can be written in this form in squared loss case.
-Thus, we store knots $(k_t)$, number of knots $N$, and coefficients $(a_t),(b_t),(c_t)$. It turns out $(c_t)$ is unnessesary.
+Thus, we store knots $(k_t)$ and coefficients $(a_t),(b_t),(c_t)$. It turns out $(c_t)$ is unnessesary.
 ```python
 class DeltaSquared(DeltaFunc):
   def __init__(self,y):
