@@ -6,13 +6,14 @@ using namespace std;
 
 void tf_dp (int n, double *y, double lam, double *beta);
 
-void result_write(int n, double *beta, double lam);
+void result_write(int n, double *beta, double lam, char *output_filename);
 
 int main(int argc, char *argv[]) {
   double y_val;
   double *y, *beta;
   char *input = argv[1];
   double lam = atof(argv[2]);
+  char *output = argv[3];
   FILE *fp = fopen(input, "r");
 
   int n = 0;
@@ -35,7 +36,7 @@ int main(int argc, char *argv[]) {
     tf_dp(n, y, lam, beta);
   }
 
-  result_write(n, beta, lam);
+  result_write(n, beta, lam, output);
 
   return 0;
 }
@@ -169,12 +170,8 @@ void tf_dp (int n, double *y, double lam, double *beta)
   free(tp);
 }
 
-void result_write(int n, double *beta, double lam) {
-  string n_str = to_string(n);
-  string lam_str = to_string(lam);
-  string filename = "lam" + lam_str + "output" + n_str + ".txt";
-  
-  FILE *fp = fopen(filename.c_str(), "w");
+void result_write(int n, double *beta, double lam, char *output_filename) {
+  FILE *fp = fopen(output_filename, "w");
   for(int i = 0; i < n; i++) {
     fprintf(fp, "%lf\n", beta[i]);
   }
