@@ -51,11 +51,13 @@ class DeltaFunc:
     def __add_loss(y):
     # Update delta(x) <- delta(x) + loss(x,y)
         pass
+    @abstractmethod        
     def __overwrite(bm,bp,λ):
     # Update delta(x) <- [[x < bm]] delta(bm) -λx +  [[bm <= x <= bp]] delta(x) + [[bp < x ]] delta(bp) + λx  
         pass
+    @abstractmethod
     def __find_tangency(s):
-    # Return x that satisfy delta'(x) = s
+    # Return x that minimizes delta(x) - sx
 ```
 
 # Implementation Deatils for DeltaFunc
@@ -75,73 +77,23 @@ knots_n
 for $(k_t)$ and $N$ as instance variables and 
 Information on $g_t$ s are stored in cocrete classes. 
 
-### Find_min step
-1. Find $t'$ such that $\delta_n(k_{t'}) \le 0 < \delta_n(k_{t'+1})$, i.e., `__derivative_at(t)` returns non-negative value 
-2. Find $x$ such that $g'_{t'}(x) = 0$   
-
-
-```python
-def __calc_derivative_at(t):
-```
-This method computes $\delta'(k_t)$ for given $t$ 
-
-```python
-def __calc_inverse(t,d):   
-```
-This method finds a root of $g_t'(x)=d$
-
-Then `find_min(self) ` can be written as follows:
-```python
-def find_min(self):
-    for i in range(self.knots_n):
-        if self.__calc_derivative_at(i) >= 0:
-            break
-    return self.__calc_inverse(i,0)
-```
-### Forward step
-To update the infomation on $g$
 
 ```python
 def __add_loss(t, y):   
 ```
-This method updates $g_t(x) \gets g_t(x) + \ell(x,y)$.
+This method updates $g_t(x) \gets g_t(x) + \ell(x,y)$ for all $t$.
 
 ```python
-def __overwrite_right(y,k):   
+def __overwrite(bm,bp,λ):   
 ```
-This method finds $t'$ such that $k_t < k < k_{t+1}$ and update 
-$$ \delta(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
-
-by $k_{t'+1} \gets k, k_{t'+2} \gets +\infty, g_{t'+1}(x) \gets \ell(x,y), and  $N \gets t'+1$.
-
-```python
-def __overwrite_left(y,k):   
-```
-This method finds $t'$ such that $k_t < k < k_{t+1}$ and update 
+This method finds $t',t''$ such that $k_{t'} < b^- < k_{t'+1}$ and $k_{t''} < b^+ < k_{t''+1}$ update 
 
 $$ \delta(x) = \sum_{t=1}^{N} g_t(x)  \mathbb{I}[k_t < x < k_{t+1}]. $$
 
-by $k_1 \gets k, g_1(x) \gets \ell(x,y)$ and $k_t \gets k_{t-t'+1},  g_t(x) \gets g_{t-t'+1}(x)$  for $t =1,\ldots, N$ in which $N \gets N - t' +1$.
+by
 
-```python
-def forward(self, λ, y): #<- this should be wrong but roughly correct
-    next = self.copy()
-    for i in range(self.knots_n,0,-1):
-        if self.__derivative_at(i) < λ:
-            break
-    bp = self.__calc_inverse(i,λ)
-    next.__overwrite_right(y,i,bp)
+$$ g_1(x ) = g(b^-) -\lambda x,\ g_t \gets g_{t - t' + 1}, g_{t'' + 1}(x) \gets g(b^+) +\lambda x $$
 
-    for i in range(self.knots_n):
-        if self.__derivative_at(i) > -λ :
-            break
-    bm = self.__calc_inverse(i,-λ)
-    next.__overwrite_left(y,i,bm)
-    
-    for i in range(self.knots_n):
-        next.__add_loss(i,y) 
-    return next
-```
 
 ### Backward step
 
