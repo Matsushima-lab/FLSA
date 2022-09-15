@@ -55,26 +55,44 @@ class DeltaFunc(ABC):
 
     @abstractmethod
     def find_tangency(self, g):
+        '''
+        find a knot "t" s.t. delta(t) + g*t = 0
+        '''
         pass
 
     @abstractmethod
     def overwrite(self, left_new_knot, right_new_knot):
+        '''
+        derive f' from previous delta'
+        '''
         pass
 
     @abstractmethod
     def add_loss(self, next_yi):
+        '''
+        calculate e' + f'
+        '''
         pass
 
     @abstractmethod
     def get_constant_f(self, x):
+        '''
+        return the expression for the leftmost or rightmost interval of f
+        '''
         pass
 
     @abstractmethod
     def calc_inverse_spline(self, t, d):
+        '''
+        inverse function for delta'
+        '''
         pass
 
     @abstractmethod
     def calc_derivative_at(self, t):
+        '''
+        return the value of delta' for a given "t"
+        '''
         pass
 
 
@@ -105,8 +123,21 @@ class DeltaSquared(DeltaFunc):
         """
         super().__init__(bm=bm, bp=bp, knots=knots, coef_list=coef_list)
 
+    def find_tangency(self, g):
+        pass
+
+    def overwrite(self, left_new_knot, right_new_knot):
+        pass
+
+    def add_loss(self, next_yi):
+        pass
+
     def get_constant_f(self, x):
         return (0, x)
+
+    def calc_inverse_spline(self, t, d):
+        assert self.coef_list[t][0] != 0
+        return (d - self.coef_list[t][1]) / self.coef_list[t][0]
 
     def calc_derivative_at(self, t):
         return sum(
@@ -116,15 +147,11 @@ class DeltaSquared(DeltaFunc):
             ]
         )
 
-    def calc_inverse_spline(self, t, d):
-        assert self.coef_list[t][0] != 0
-        return (d - self.coef_list[t][1]) / self.coef_list[t][0]
-
-    def calc_eprime(self, next_yi):
-        return (1, -next_yi)
-
 
 def solver(y: np.array, lamb: float, loss: str = None) -> np.array:
+    n = y.size
+    delta_squared = [None] * n
+    beta = np.zeros(n)
     delta_squared[0] = DeltaSquared()
     for i in range(n - 1):
         delta_squared[i + 1] = delta_squared[i].forward(
