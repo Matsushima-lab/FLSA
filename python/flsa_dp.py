@@ -10,9 +10,9 @@ from turtle import forward
 
 class DeltaFunc(ABC):
 
-    basis_function_list = []
+    basis_function_list = [] # bases for delta'
 
-    def __init__(self, bm, bp, knots, coef_list) -> None:
+    def __init__(self, knots, coef_list) -> None:
         """init function for
             delta'(b)のi番目のknot区間について
             delta'(b) = a_b_list[i] * b + a_c_list[i]
@@ -24,8 +24,6 @@ class DeltaFunc(ABC):
                 coef and basis function is an element of coef_list and basis_function_list.
             coef_list (List(float)): The length of coef_list is len(knots) + 1
         """
-        self.bm = bm
-        self.bp = bp
         self.knots = knots
         self.coef_list = coef_list
 
@@ -50,25 +48,25 @@ class DeltaFunc(ABC):
         self.bm = self.find_tangency(-lamb)
         self.bp = self.find_tangency(lamb)
         next_f = self.overwrite(self.bm, self.bp, lamb)
-        next_delta = self.add_loss(next_f)
-        return next_delta
+        next_delta = self.add_loss(next_f, next_yi)
+        return self.return_instance(next_delta)
 
     @abstractmethod
     def find_tangency(self, g):
         '''
-        find a knot "t" s.t. delta(t) + g*t = 0
+        find a knot "t" s.t. delta(t) - g*t = 0
         '''
         pass
 
     @abstractmethod
-    def overwrite(self, left_new_knot, right_new_knot):
+    def overwrite(self, left_new_knot, right_new_knot, const):
         '''
         derive f' from previous delta'
         '''
         pass
 
     @abstractmethod
-    def add_loss(self, next_yi):
+    def add_loss(self, next_f, next_yi):
         '''
         calculate e' + f'
         '''
@@ -85,6 +83,8 @@ class DeltaFunc(ABC):
     def calc_inverse_spline(self, t, d):
         '''
         inverse function for delta'
+        return "b" such that delta'(b) = d
+        "t" indicates the interval in which such "b" exists.
         '''
         pass
 
@@ -93,6 +93,10 @@ class DeltaFunc(ABC):
         '''
         return the value of delta' for a given "t"
         '''
+        pass
+
+    @abstractmethod
+    def return_instance(self, next_delta):
         pass
 
 
@@ -105,8 +109,6 @@ class DeltaSquared(DeltaFunc):
 
     def __init__(
         self,
-        bm,
-        bp,
         knots,
         coef_list,
     ):
@@ -121,38 +123,67 @@ class DeltaSquared(DeltaFunc):
                 coef and basis function is an element of coef_list and basis_function_list.
             coef_list (List(float)): The length of coef_list is len(knots) + 1
         """
-        super().__init__(bm=bm, bp=bp, knots=knots, coef_list=coef_list)
+        super().__init__(knots=knots, coef_list=coef_list)
 
     def find_tangency(self, g):
-        pass
+        for t in range(len(self.knots)):
+            if self.calc_derivative_at(self.knots[t], t) - g > 0:
+                return self.calc_inverse_spline(t,g)
 
-    def overwrite(self, left_new_knot, right_new_knot):
-        pass
+        return self.calc_inverse_spline(len(self.knots), g)
 
-    def add_loss(self, next_yi):
-        pass
+    def overwrite(self, left_new_knot, right_new_knot, lamb):
+        left_most = None
+        right_most = None
+        for t in range(len(self.knots)):
+            if abs(self.calc_derivative_at(left_new_knot, t) + lamb) < 1e-7:
+                left_most = t
+        if left_most == None: 
+            left_most = len(self.knots)
+            right_most = len(self.knots)
+        else:
+            for t in range(left_most, len(self.knots)):
+                if abs(self.calc_derivative_at(right_new_knot, t) - lamb) < 1e-7:
+                    right_most = t
+            if right_most == None:
+                right_most = len(self.knots)
+
+        tmp_knots = [left_new_knot] + self.knots[left_most:right_most] + [right_new_knot]
+        tmp_coef_list = [self.get_constant_f(-lamb)] + self.coef_list[left_most:right_most+1] + [self.get_constant_f(lamb)]
+
+        return tmp_knots, tmp_coef_list
+
+    def add_loss(self, next_f, next_yi):
+        for coefs in next_f[1]:
+            coefs[0] += 1
+            coefs[1] -= next_yi
+
+        return next_f
 
     def get_constant_f(self, x):
-        return (0, x)
+        return [0, x]
 
     def calc_inverse_spline(self, t, d):
         assert self.coef_list[t][0] != 0
         return (d - self.coef_list[t][1]) / self.coef_list[t][0]
 
-    def calc_derivative_at(self, t):
+    def calc_derivative_at(self, b, t):
         return sum(
             [
-                c * bf(self.knots[t])
+                c * bf(b)
                 for bf, c in zip(self.basis_function_list, self.coef_list[t])
             ]
         )
+
+    def return_instance(self, next_delta):
+        return DeltaSquared(knots = next_delta[0], coef_list = next_delta[1])
 
 
 def solver(y: np.array, lamb: float, loss: str = None) -> np.array:
     n = y.size
     delta_squared = [None] * n
     beta = np.zeros(n)
-    delta_squared[0] = DeltaSquared()
+    delta_squared[0] = DeltaSquared(knots = [], coef_list=[[1, -y[0]]])
     for i in range(n - 1):
         delta_squared[i + 1] = delta_squared[i].forward(
             lamb, y[i + 1])
