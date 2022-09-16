@@ -7,11 +7,11 @@ import flsa_dp
 
 class ReturnTest(unittest.TestCase):
     def test_easy_case(self):
-        beta = flsa_dp.main([0, 1], 0.5)
-        self.assertTrue(beta == [0.5, 0.5])
+        beta = flsa_dp.solver(np.array([0, 1]), 0.5)
+        np.testing.assert_array_almost_equal(np.array(beta), np.array([0.5, 0.5]))
 
     def test_from_dp_cpp(self):
-        beta = flsa_dp.main(self.input_data, self.lam)
+        beta = flsa_dp.solver(np.array(self.input_data), self.lam)
         np.testing.assert_array_almost_equal(
             np.array(beta), np.array(self.output_data), decimal=5
         )

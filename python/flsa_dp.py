@@ -187,7 +187,7 @@ def solver(y: np.array, lamb: float, loss: str = None) -> np.array:
     for i in range(n - 1):
         delta_squared[i + 1] = delta_squared[i].forward(
             lamb, y[i + 1])
-        print(f"delta_squared[{i + 1}]:", vars(delta_squared[i + 1]))
+        #print(f"delta_squared[{i + 1}]:", vars(delta_squared[i + 1]))
     beta[n - 1] = delta_squared[n - 1].find_tangency(0)
     for i in range(n - 1, 0, -1):
         beta[i - 1] = delta_squared[i-1].backward(next_beta=beta[i])
