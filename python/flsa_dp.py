@@ -54,7 +54,7 @@ class DeltaFunc(ABC):
     @abstractmethod
     def find_tangency(self, g):
         '''
-        find a knot "t" s.t. delta(t) - g*t = 0
+        find a knot "t" s.t. t = argmin(delta(t) - g*t)
         '''
         pass
 
