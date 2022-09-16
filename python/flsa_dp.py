@@ -12,7 +12,7 @@ class DeltaFunc(ABC):
 
     basis_function_list = [] # bases for delta'
 
-    def __init__(self, knots, coef_list) -> None:
+    def __init__(self, coef_list) -> None:
         """init function for
             delta'(b)のi番目のknot区間について
             delta'(b) = a_b_list[i] * b + a_c_list[i]
@@ -24,7 +24,6 @@ class DeltaFunc(ABC):
                 coef and basis function is an element of coef_list and basis_function_list.
             coef_list (List(float)): The length of coef_list is len(knots) + 1
         """
-        self.knots = knots
         self.coef_list = coef_list
 
     def backward(self, next_beta):
@@ -100,8 +99,31 @@ class DeltaFunc(ABC):
         pass
 
 
-class Deltalogistic(DeltaFunc):
-    pass
+class DeltaLogistic(DeltaFunc):
+    def __init__(self, knots, coef_list):
+        super().__init__(coef_list)
+        self.knots = knots or [-np.inf, np.inf]
+
+    def find_tangency(self, g):
+        pass
+
+    def overwrite(self, left_new_knot, right_new_knot, const):
+        return super().overwrite(left_new_knot, right_new_knot, const)
+
+    def add_loss(self, next_f, next_yi):
+        return super().add_loss(next_f, next_yi)
+
+    def get_constant_f(self, x):
+        return super().get_constant_f(x)
+
+    def calc_inverse_spline(self, t, d):
+        return super().calc_inverse_spline(t, d)
+
+    def calc_derivative_at(self, t):
+        return super().calc_derivative_at(t)
+
+    def return_instance(self, next_delta):
+        return DeltaLogistic(next_delta)
 
 
 class DeltaSquared(DeltaFunc):
@@ -123,7 +145,8 @@ class DeltaSquared(DeltaFunc):
                 coef and basis function is an element of coef_list and basis_function_list.
             coef_list (List(float)): The length of coef_list is len(knots) + 1
         """
-        super().__init__(knots=knots, coef_list=coef_list)
+        super().__init__(coef_list=coef_list)
+        self.knots = knots
 
     def find_tangency(self, g):
         for t in range(len(self.knots)):
@@ -187,7 +210,7 @@ def solver(y: np.array, lamb: float, loss: str = None) -> np.array:
     for i in range(n - 1):
         delta_squared[i + 1] = delta_squared[i].forward(
             lamb, y[i + 1])
-        #print(f"delta_squared[{i + 1}]:", vars(delta_squared[i + 1]))
+        print(f"delta_squared[{i + 1}]:", vars(delta_squared[i + 1]))
     beta[n - 1] = delta_squared[n - 1].find_tangency(0)
     for i in range(n - 1, 0, -1):
         beta[i - 1] = delta_squared[i-1].backward(next_beta=beta[i])
