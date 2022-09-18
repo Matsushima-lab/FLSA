@@ -5,7 +5,7 @@ from typing import overload
 import numpy as np
 from abc import ABC, abstractmethod
 
-from turtle import forward
+from turtle import forward, right
 
 
 class DeltaFunc(ABC):
@@ -53,7 +53,7 @@ class DeltaFunc(ABC):
     @abstractmethod
     def find_tangency(self, g):
         '''
-        find a knot "t" s.t. delta(t) - g*t = 0
+        find a knot "t" s.t. t = argmin(delta(t) - g*t)
         '''
         pass
 
@@ -88,7 +88,7 @@ class DeltaFunc(ABC):
         pass
 
     @abstractmethod
-    def calc_derivative_at(self, t):
+    def calc_derivative_at(self, b, t):
         '''
         return the value of delta' for a given "t"
         '''
@@ -100,27 +100,65 @@ class DeltaFunc(ABC):
 
 
 class DeltaLogistic(DeltaFunc):
+    basis_function_list = [lambda x: -1/(np.exp(x) + 1), lambda x: 1/(np.exp(-x) + 1), lambda x: 1]
+    tangency_intervals = []
+
     def __init__(self, knots, coef_list):
         super().__init__(coef_list)
         self.knots = knots or [-np.inf, np.inf]
 
     def find_tangency(self, g):
-        pass
+        for t in range(len(self.knots)-1):
+            if self.calc_derivative_at(self.knots[t+1], t) - g > 0:
+                self.tangency_intervals.append(t+1)
+                return self.calc_inverse_spline(t,g)
+        self.tangency_intervals.append(len(self.knots))
+        return np.inf
 
     def overwrite(self, left_new_knot, right_new_knot, const):
-        return super().overwrite(left_new_knot, right_new_knot, const)
+        tmp_knots = self.knots[self.tangency_intervals[0]:self.tangency_intervals[1]]
+        tmp_coef_list = self.coef_list[self.tangency_intervals[0]-1:self.tangency_intervals[1]]
+
+        if left_new_knot != -np.inf:
+            tmp_knots = [-np.inf, left_new_knot] + tmp_knots
+            tmp_coef_list = [self.get_constant_f(-const)] + tmp_coef_list
+        else:
+            tmp_knots = [-np.inf] + tmp_knots
+
+        if right_new_knot != np.inf:
+            tmp_knots = tmp_knots + [right_new_knot, np.inf]
+            tmp_coef_list = tmp_coef_list + [self.get_constant_f(const)]
+        else:
+            tmp_knots = tmp_knots + [np.inf]
+
+        return tmp_knots, tmp_coef_list
 
     def add_loss(self, next_f, next_yi):
-        return super().add_loss(next_f, next_yi)
+        for coefs in next_f[1]:
+            if(next_yi == 1):
+                coefs[0] += 1
+            else:
+                coefs[1] += 1
+        return next_f
 
     def get_constant_f(self, x):
-        return super().get_constant_f(x)
+        return [0, 0, x]
 
     def calc_inverse_spline(self, t, d):
-        return super().calc_inverse_spline(t, d)
+        if (0 < self.coef_list[2] - d < self.coef_list[0]) or (-self.coef_list[1] < self.coef_list[2] - d < 0):
+            return np.log((self.coef_list[t][0] - self.coef_list[t][2] + d) / (self.coef_list[t][1] + self.coef_list[t][2] - d))
+        elif (self.coef_list[2] - d > self.coef_list[0]):
+            return -np.inf
+        else: #not necessary?
+            return np.inf
 
-    def calc_derivative_at(self, t):
-        return super().calc_derivative_at(t)
+    def calc_derivative_at(self, b, t):
+        return sum(
+            [
+                c * bf(b)
+                for bf, c in zip(self.basis_function_list, self.coef_list[t])
+            ]
+        )
 
     def return_instance(self, next_delta):
         return DeltaLogistic(next_delta)
@@ -128,6 +166,7 @@ class DeltaLogistic(DeltaFunc):
 
 class DeltaSquared(DeltaFunc):
     basis_function_list = [lambda x: x, lambda x: 1]
+    tangency_intervals = []
 
     def __init__(
         self,
@@ -151,28 +190,14 @@ class DeltaSquared(DeltaFunc):
     def find_tangency(self, g):
         for t in range(len(self.knots)):
             if self.calc_derivative_at(self.knots[t], t) - g > 0:
+                self.tangency_intervals.append(t)
                 return self.calc_inverse_spline(t,g)
-
+        self.tangency_intervals.appens(len(self.knots))
         return self.calc_inverse_spline(len(self.knots), g)
 
     def overwrite(self, left_new_knot, right_new_knot, lamb):
-        left_most = None
-        right_most = None
-        for t in range(len(self.knots)):
-            if abs(self.calc_derivative_at(left_new_knot, t) + lamb) < 1e-7:
-                left_most = t
-        if left_most == None: 
-            left_most = len(self.knots)
-            right_most = len(self.knots)
-        else:
-            for t in range(left_most, len(self.knots)):
-                if abs(self.calc_derivative_at(right_new_knot, t) - lamb) < 1e-7:
-                    right_most = t
-            if right_most == None:
-                right_most = len(self.knots)
-
-        tmp_knots = [left_new_knot] + self.knots[left_most:right_most] + [right_new_knot]
-        tmp_coef_list = [self.get_constant_f(-lamb)] + self.coef_list[left_most:right_most+1] + [self.get_constant_f(lamb)]
+        tmp_knots = [left_new_knot] + self.knots[self.tangency_intervals[0]:self.tangency_intervals[1]] + [right_new_knot]
+        tmp_coef_list = [self.get_constant_f(-lamb)] + self.coef_list[self.tangency_intervals[0]:self.tangency_intervals[1]+1] + [self.get_constant_f(lamb)]
 
         return tmp_knots, tmp_coef_list
 
