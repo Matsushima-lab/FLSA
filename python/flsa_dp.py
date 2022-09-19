@@ -145,9 +145,9 @@ class DeltaLogistic(DeltaFunc):
         return [0, 0, x]
 
     def calc_inverse_spline(self, t, d):
-        if (0 < self.coef_list[2] - d < self.coef_list[0]) or (-self.coef_list[1] < self.coef_list[2] - d < 0):
+        if (0 < self.coef_list[t][2] - d < self.coef_list[t][0]) or (-self.coef_list[t][1] < self.coef_list[t][2] - d < 0):
             return np.log((self.coef_list[t][0] - self.coef_list[t][2] + d) / (self.coef_list[t][1] + self.coef_list[t][2] - d))
-        elif (self.coef_list[2] - d > self.coef_list[0]):
+        elif (self.coef_list[t][2] - d > self.coef_list[t][0]):
             return -np.inf
         else: #not necessary?
             return np.inf
@@ -161,7 +161,7 @@ class DeltaLogistic(DeltaFunc):
         )
 
     def return_instance(self, next_delta):
-        return DeltaLogistic(next_delta)
+        return DeltaLogistic(knots=next_delta[0], coef_list=next_delta[1])
 
 
 class DeltaSquared(DeltaFunc):
@@ -192,7 +192,7 @@ class DeltaSquared(DeltaFunc):
             if self.calc_derivative_at(self.knots[t], t) - g > 0:
                 self.tangency_intervals.append(t)
                 return self.calc_inverse_spline(t,g)
-        self.tangency_intervals.appens(len(self.knots))
+        self.tangency_intervals.append(len(self.knots))
         return self.calc_inverse_spline(len(self.knots), g)
 
     def overwrite(self, left_new_knot, right_new_knot, lamb):
@@ -227,21 +227,32 @@ class DeltaSquared(DeltaFunc):
         return DeltaSquared(knots = next_delta[0], coef_list = next_delta[1])
 
 
-def solver(y: np.array, lamb: float, loss: str = None) -> np.array:
+def solver(y: np.array, lamb: float, loss: str = "squared") -> np.array:
     n = y.size
-    delta_squared = [None] * n
+    delta = [None] * n
     beta = np.zeros(n)
-    delta_squared[0] = DeltaSquared(knots = [], coef_list=[[1, -y[0]]])
+
+    if loss == "squared":
+        delta[0] = DeltaSquared(knots=[], coef_list=[[1, -y[0]]])
+    elif loss == "logistic":
+        if y[0] == 1:
+            delta[0] = DeltaLogistic(knots=[-np.inf, np.inf], coef_list=[[1, 0, 0]])
+        else:
+            delta[0] = DeltaLogistic(knots=[-np.inf, np.inf], coef_list=[[0, 1, 0]])
+    
     for i in range(n - 1):
-        delta_squared[i + 1] = delta_squared[i].forward(
+        delta[i + 1] = delta[i].forward(
             lamb, y[i + 1])
-        print(f"delta_squared[{i + 1}]:", vars(delta_squared[i + 1]))
-    beta[n - 1] = delta_squared[n - 1].find_tangency(0)
+        print(f"delta_squared[{i + 1}]:", vars(delta[i + 1]))
+    beta[n - 1] = delta[n - 1].find_tangency(0)
     for i in range(n - 1, 0, -1):
-        beta[i - 1] = delta_squared[i-1].backward(next_beta=beta[i])
+        beta[i - 1] = delta[i-1].backward(next_beta=beta[i])
+
     return beta
 
 
 if __name__ == "__main__":
-    beta = solver(np.array([0,1]), 0.5)
-    print(beta)
+    beta1 = solver(np.array([0,1]), 0.5)
+    beta2 = solver(np.array([-1, -1, 1, -1, 1, 1]), 0.5, "logistic")
+    print(beta1)
+    print(beta2)
