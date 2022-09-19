@@ -101,11 +101,11 @@ class DeltaFunc(ABC):
 
 class DeltaLogistic(DeltaFunc):
     basis_function_list = [lambda x: -1/(np.exp(x) + 1), lambda x: 1/(np.exp(-x) + 1), lambda x: 1]
-    tangency_intervals = []
 
     def __init__(self, knots, coef_list):
         super().__init__(coef_list)
         self.knots = knots or [-np.inf, np.inf]
+        self.tangency_intervals = []
 
     def find_tangency(self, g):
         for t in range(len(self.knots)-1):
@@ -129,7 +129,8 @@ class DeltaLogistic(DeltaFunc):
             tmp_knots = tmp_knots + [right_new_knot, np.inf]
             tmp_coef_list = tmp_coef_list + [self.get_constant_f(const)]
         else:
-            tmp_knots = tmp_knots + [np.inf]
+            if tmp_knots[-1] != np.inf:
+                tmp_knots = tmp_knots + [np.inf]
 
         return tmp_knots, tmp_coef_list
 
@@ -145,9 +146,9 @@ class DeltaLogistic(DeltaFunc):
         return [0, 0, x]
 
     def calc_inverse_spline(self, t, d):
-        if (0 < self.coef_list[t][2] - d < self.coef_list[t][0]) or (-self.coef_list[t][1] < self.coef_list[t][2] - d < 0):
+        if (0 <= self.coef_list[t][2] - d < self.coef_list[t][0]) or (-self.coef_list[t][1] < self.coef_list[t][2] - d <= 0):
             return np.log((self.coef_list[t][0] - self.coef_list[t][2] + d) / (self.coef_list[t][1] + self.coef_list[t][2] - d))
-        elif (self.coef_list[t][2] - d > self.coef_list[t][0]):
+        elif (self.coef_list[t][2] - d >= self.coef_list[t][0]):
             return -np.inf
         else: #not necessary?
             return np.inf
@@ -166,12 +167,11 @@ class DeltaLogistic(DeltaFunc):
 
 class DeltaSquared(DeltaFunc):
     basis_function_list = [lambda x: x, lambda x: 1]
-    tangency_intervals = []
 
     def __init__(
         self,
         knots,
-        coef_list,
+        coef_list
     ):
         """init function for
             delta'(b)のi番目のknot区間について
@@ -186,6 +186,7 @@ class DeltaSquared(DeltaFunc):
         """
         super().__init__(coef_list=coef_list)
         self.knots = knots
+        self.tangency_intervals = []
 
     def find_tangency(self, g):
         for t in range(len(self.knots)):
