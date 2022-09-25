@@ -4,27 +4,63 @@ from colorsys import yiq_to_rgb
 from typing import overload
 import numpy as np
 from abc import ABC, abstractmethod
+import copy
 
 from turtle import forward, right
 
 
 class DeltaFunc(ABC):
 
-    basis_function_list = [] # bases for delta'
+    @abstractmethod
+    def __init__(self, y) -> None:
+        """init function will be implemented in the concrete classes
+            initialized with delta(x) = loss(x, y)
 
-    def __init__(self, coef_list) -> None:
-        """init function for
-            delta'(b)のi番目のknot区間について
-            delta'(b) = a_b_list[i] * b + a_c_list[i]
+            Args: y
+        """
+        pass
+
+    @abstractmethod
+    def find_tangency(self, g):
+        '''
+        find a knot "t" s.t. t = argmin(delta(x) - g*x)
+        '''
+        pass
+
+    @abstractmethod
+    def copy(self):
+        pass
+
+    @abstractmethod
+    def overwrite(self, left_new_knot, right_new_knot, lamb):
+        '''
+        Args: left_new_knot (float b s.t. b = argmin(delta(x) + lamb * x))
+              right_new_knot (float b s.t. b = argmin(delta(x) - lamb * x))
+              lamb (used in above)
+        return concrete class instance delta(y) = min (delta(x) + lamb*|x - y|)
+        '''
+        pass
+
+    @abstractmethod
+    def add_loss(self, next_yi):
+        '''
+        returns concrete class instance delta = delta + loss
+        '''
+        pass
+
+    def forward(self, lamb: float, y: float) -> DeltaFunc:
+        """
+        Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
 
         Args:
-            bm (float): b^-. This variable will be used in backward process.
-            bp (float): b^+. This variable will be used in backward process.
-            knots (List(float)): The interval of delta function between two adjacent knots can be expressed by delta(b) = sum(coef * basis_function(b)).
-                coef and basis function is an element of coef_list and basis_function_list.
-            coef_list (List(float)): The length of coef_list is len(knots) + 1
+        Return; DeltaFunc
         """
-        self.coef_list = coef_list
+        self.bm = self.find_tangency(-lamb)
+        self.bp = self.find_tangency(lamb)
+        next_delta = self.copy()
+        next_delta = next_delta.overwrite(self.bm, self.bp, lamb).add_loss(y)
+        #next_delta = self.add_loss(next_yi)
+        return next_delta
 
     def backward(self, next_beta):
         """
@@ -37,74 +73,17 @@ class DeltaFunc(ABC):
         Calculated in the process of "forward" method
         """
 
-    def forward(self, lamb: float, next_yi: float) -> DeltaFunc:
-        """
-        Compute next delta(b) as min_b' delta(b') + loss(b,yi) +  lambda |b'-b|
-
-        Args:
-        Return; DeltaFunc
-        """
-        self.bm = self.find_tangency(-lamb)
-        self.bp = self.find_tangency(lamb)
-        next_f = self.overwrite(self.bm, self.bp, lamb)
-        next_delta = self.add_loss(next_f, next_yi)
-        return self.return_instance(next_delta)
-
-    @abstractmethod
-    def find_tangency(self, g):
-        '''
-        find a knot "t" s.t. t = argmin(delta(t) - g*t)
-        '''
-        pass
-
-    @abstractmethod
-    def overwrite(self, left_new_knot, right_new_knot, const):
-        '''
-        derive f' from previous delta'
-        '''
-        pass
-
-    @abstractmethod
-    def add_loss(self, next_f, next_yi):
-        '''
-        calculate e' + f'
-        '''
-        pass
-
-    @abstractmethod
-    def get_constant_f(self, x):
-        '''
-        return the expression for the leftmost or rightmost interval of f
-        '''
-        pass
-
-    @abstractmethod
-    def calc_inverse_spline(self, t, d):
-        '''
-        inverse function for delta'
-        return "b" such that delta'(b) = d
-        "t" indicates the interval in which such "b" exists.
-        '''
-        pass
-
-    @abstractmethod
-    def calc_derivative_at(self, b, t):
-        '''
-        return the value of delta' for a given "t"
-        '''
-        pass
-
-    @abstractmethod
-    def return_instance(self, next_delta):
-        pass
-
-
 class DeltaLogistic(DeltaFunc):
     basis_function_list = [lambda x: -1/(np.exp(x) + 1), lambda x: 1/(np.exp(-x) + 1), lambda x: 1]
 
-    def __init__(self, knots, coef_list):
-        super().__init__(coef_list)
-        self.knots = knots or [-np.inf, np.inf]
+    def __init__(self, y = None):
+        if y == None:
+            return
+        self.knots = [-np.inf, np.inf]
+        if y == 1:
+            self.coef_list = [[1, 0, 0]]
+        elif y == -1:
+            self.coef_list = [[0, 1, 0]]
         self.tangency_intervals = []
 
     def find_tangency(self, g):
@@ -115,32 +94,44 @@ class DeltaLogistic(DeltaFunc):
         self.tangency_intervals.append(len(self.knots))
         return np.inf
 
-    def overwrite(self, left_new_knot, right_new_knot, const):
+    def copy(self):
+        new = DeltaLogistic()
+        new.knots = copy.copy(self.knots)
+        new.coef_list = copy.deepcopy(self.coef_list)
+        new.tangency_intervals = copy.copy(self.tangency_intervals)
+        return new
+
+    def overwrite(self, left_new_knot, right_new_knot, lamb):
         tmp_knots = self.knots[self.tangency_intervals[0]:self.tangency_intervals[1]]
         tmp_coef_list = self.coef_list[self.tangency_intervals[0]-1:self.tangency_intervals[1]]
 
         if left_new_knot != -np.inf:
             tmp_knots = [-np.inf, left_new_knot] + tmp_knots
-            tmp_coef_list = [self.get_constant_f(-const)] + tmp_coef_list
+            tmp_coef_list = [self.get_constant_f(-lamb)] + tmp_coef_list
         else:
             tmp_knots = [-np.inf] + tmp_knots
 
         if right_new_knot != np.inf:
             tmp_knots = tmp_knots + [right_new_knot, np.inf]
-            tmp_coef_list = tmp_coef_list + [self.get_constant_f(const)]
+            tmp_coef_list = tmp_coef_list + [self.get_constant_f(lamb)]
         else:
             if tmp_knots[-1] != np.inf:
                 tmp_knots = tmp_knots + [np.inf]
 
-        return tmp_knots, tmp_coef_list
+        self.knots = tmp_knots
+        self.coef_list = tmp_coef_list
 
-    def add_loss(self, next_f, next_yi):
-        for coefs in next_f[1]:
+        self.tangency_intervals = []
+
+        return self
+
+    def add_loss(self, next_yi):
+        for coefs in self.coef_list:
             if(next_yi == 1):
                 coefs[0] += 1
             else:
                 coefs[1] += 1
-        return next_f
+        return self
 
     def get_constant_f(self, x):
         return [0, 0, x]
@@ -184,8 +175,8 @@ class DeltaSquared(DeltaFunc):
                 coef and basis function is an element of coef_list and basis_function_list.
             coef_list (List(float)): The length of coef_list is len(knots) + 1
         """
-        super().__init__(coef_list=coef_list)
         self.knots = knots
+        self.coef_list = coef_list
         self.tangency_intervals = []
 
     def find_tangency(self, g):
@@ -236,11 +227,8 @@ def solver(y: np.array, lamb: float, loss: str = "squared") -> np.array:
     if loss == "squared":
         delta[0] = DeltaSquared(knots=[], coef_list=[[1, -y[0]]])
     elif loss == "logistic":
-        if y[0] == 1:
-            delta[0] = DeltaLogistic(knots=[-np.inf, np.inf], coef_list=[[1, 0, 0]])
-        else:
-            delta[0] = DeltaLogistic(knots=[-np.inf, np.inf], coef_list=[[0, 1, 0]])
-    
+        delta[0] = DeltaLogistic(y[0])
+        
     for i in range(n - 1):
         delta[i + 1] = delta[i].forward(
             lamb, y[i + 1])
@@ -253,7 +241,7 @@ def solver(y: np.array, lamb: float, loss: str = "squared") -> np.array:
 
 
 if __name__ == "__main__":
-    beta1 = solver(np.array([0,1]), 0.5)
+    #beta1 = solver(np.array([0,1]), 0.5)
     beta2 = solver(np.array([-1, -1, 1, -1, 1, 1]), 0.5, "logistic")
-    print(beta1)
+    #print(beta1)
     print(beta2)
