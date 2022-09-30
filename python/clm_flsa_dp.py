@@ -1,6 +1,11 @@
 from flsa_dp import DeltaFunc
 import numpy as np
 import copy
+import scipy
+
+
+TMP_INF = 1e3
+EPS = 1e-5
 
 
 class DeltaCLM(DeltaFunc):
@@ -16,6 +21,8 @@ class DeltaCLM(DeltaFunc):
             lambda x: -1/(np.exp(bq - x) + 1) for bq in b_q_list] + [lambda x: 1]
 
     def find_tangency(self, g):
+        if self.calc_derivative_at(-np.inf, 0) - g > 0:
+            return -np.inf
         for t in range(len(self.knots)-1):
             if self.calc_derivative_at(self.knots[t+1], t) - g > 0:
                 self.tangency_intervals.append(t+1)
@@ -33,23 +40,24 @@ class DeltaCLM(DeltaFunc):
     def overwrite(self, left_new_knot, right_new_knot, lamb):
         tmp_knots = self.knots[self.tangency_intervals[0]
             :self.tangency_intervals[1]]
-        tmp_coef_list = self.coef_list[self.tangency_intervals[0] -
-                                       1:self.tangency_intervals[1]]
 
         if left_new_knot != -np.inf:
             tmp_knots = [-np.inf, left_new_knot] + tmp_knots
-            tmp_coef_list = [self.get_constant_f(-lamb)] + tmp_coef_list
-        else:
-            tmp_knots = [-np.inf] + tmp_knots
-
         if right_new_knot != np.inf:
             tmp_knots = tmp_knots + [right_new_knot, np.inf]
-            tmp_coef_list = tmp_coef_list + [self.get_constant_f(lamb)]
-        else:
-            if tmp_knots[-1] != np.inf:
-                tmp_knots = tmp_knots + [np.inf]
-
+        if tmp_knots[0] != -np.inf:
+            tmp_knots = [-np.inf] + tmp_knots
+        if tmp_knots[-1] != np.inf:
+            tmp_knots = tmp_knots + [np.inf]
         self.knots = tmp_knots
+
+        tmp_coef_list = self.coef_list[self.tangency_intervals[0] -
+                                       1:self.tangency_intervals[1]]
+        if left_new_knot != -np.inf:
+            tmp_coef_list = [self.get_constant_f(-lamb)] + tmp_coef_list
+
+        if right_new_knot != np.inf:
+            tmp_coef_list = tmp_coef_list + [self.get_constant_f(lamb)]
         self.coef_list = tmp_coef_list
 
         self.tangency_intervals = []
@@ -70,10 +78,48 @@ class DeltaCLM(DeltaFunc):
         """_summary_
         use Newton's method to calc inverse
         Args:
+            t (_type_): _
+            d (_type_): _description_
+        """
+        return self.__calc_inverse_spline_by_bisection(t, d)
+
+    def __calc_inverse_spline_by_bisection(self, t, d):
+        """_summary_
+
+        Args:
             t (_type_): _description_
             d (_type_): _description_
         """
-        self.
+        section_start = self.knots[t]
+        section_end = self.knots[t+1]
+        if section_start == -np.inf:
+            section_start = -TMP_INF
+            while self.calc_derivative_at(section_start, t) < d:
+                section_start *= TMP_INF
+
+        if section_end == np.inf:
+            section_end = TMP_INF
+            while self.calc_derivative_at(section_end, t) > d:
+                section_start *= TMP_INF
+
+        assert(self.calc_derivative_at(section_start, t) <= d)
+        assert(self.calc_derivative_at(section_end, t) >= d)
+
+        while True:
+            mid = (section_start + section_end)/2
+            mid_derivative = self.calc_derivative_at(mid, t)
+            if abs(mid_derivative-d) < EPS:
+                break
+            if mid_derivative < d:
+                section_start = mid
+            else:
+                section_end = mid
+
+        return mid
+
+
+            
+            
 
     def calc_derivative_at(self, b, t):
         return sum(
