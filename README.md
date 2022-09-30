@@ -4,7 +4,7 @@ Generic implementation of the Fused Lasso signal operator
 # Mathematical description
 Input: 
 
-$$y = (y_0,\ldots,y_{n-1}) \in \mathbb{R}^n, \ell: \mathbb{R} \times \mathbb{R} \to \mathbb{R}_+ , \lambda = (\lambda_0,\ldots,\lambda_{n-2}) \in \mathbb{R}_+^{n-1}$$ 
+$$y = (y_0,\ldots,y_{n-1}) \in \mathbb{R}^n, \lambda = (\lambda_0,\ldots,\lambda_{n-2}) \in \mathbb{R}_+^{n-1},\ell: \mathbb{R} \times \mathbb{R} \to \mathbb{R}_+$$ 
 
 Output: Solution of fused lasso problem $x^*\in\mathbb{R}^n$ defined as 
 
