@@ -1,5 +1,6 @@
 from flsa_dp import DeltaFunc
 import numpy as np
+import copy
 
 
 class DeltaCLM(DeltaFunc):
@@ -30,8 +31,7 @@ class DeltaCLM(DeltaFunc):
         return new
 
     def overwrite(self, left_new_knot, right_new_knot, lamb):
-        tmp_knots = self.knots[self.tangency_intervals[0]
-            :self.tangency_intervals[1]]
+        tmp_knots = self.knots[self.tangency_intervals[0]:self.tangency_intervals[1]]
         tmp_coef_list = self.coef_list[self.tangency_intervals[0] -
                                        1:self.tangency_intervals[1]]
 
@@ -56,19 +56,20 @@ class DeltaCLM(DeltaFunc):
         return self
 
     def add_loss(self, next_yi):
-        self.coef_list[next_yi - 1] += 1
-        self.coef_list[next_yi] += 1
-        self.coef_list[-1] += 1
+        for coef in self.coef_list:
+            coef[next_yi - 1] += 1
+            coef[next_yi] += 1
+            coef[-1] += 1
         return self
 
     def get_constant_f(self, x):
-        pass
+        return [0] * len(self.b_q_list) + [x]
 
     def calc_inverse_spline(self, t, d):
-        pass
+        self.
 
     def calc_derivative_at(self, b, t):
         pass
 
     def return_instance(self, next_delta):
-        pass
+        return DeltaCLM(knots=next_delta[0], coef_list=next_delta[1])
