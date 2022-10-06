@@ -11,9 +11,11 @@ EPS = 1e-5
 class DeltaCLM(DeltaFunc):
 
     def __init__(self, y=None, b_q_list=[]):
-        self.coef_list = [0] * (len(b_q_list)) + [1]
-        self.coef_list[y] = 1
-        self.coef_list[y - 1] = 1
+        if y == None:
+            return
+        self.coef_list = [[0] * (len(b_q_list)) + [1]]
+        self.coef_list[0][y] = 1
+        self.coef_list[0][y - 1] = 1
         self.knots = [-np.inf, np.inf]
         self.tangency_intervals = []
         self.b_q_list = b_q_list
@@ -22,6 +24,7 @@ class DeltaCLM(DeltaFunc):
 
     def find_tangency(self, g):
         if self.calc_derivative_at(-np.inf, 0) - g > 0:
+            self.tangency_intervals.append(0)
             return -np.inf
         for t in range(len(self.knots)-1):
             if self.calc_derivative_at(self.knots[t+1], t) - g > 0:
@@ -35,6 +38,9 @@ class DeltaCLM(DeltaFunc):
         new.knots = copy.copy(self.knots)
         new.coef_list = copy.deepcopy(self.coef_list)
         new.tangency_intervals = copy.copy(self.tangency_intervals)
+        new.b_q_list = copy.copy(self.b_q_list)
+        new.basis_function_list = [
+            lambda x: -1/(np.exp(bq - x) + 1) for bq in new.b_q_list] + [lambda x: 1]
         return new
 
     def overwrite(self, left_new_knot, right_new_knot, lamb):
@@ -117,10 +123,6 @@ class DeltaCLM(DeltaFunc):
 
         return mid
 
-
-            
-            
-
     def calc_derivative_at(self, b, t):
         return sum(
             [
@@ -131,3 +133,26 @@ class DeltaCLM(DeltaFunc):
 
     def return_instance(self, next_delta):
         return DeltaCLM(knots=next_delta[0], coef_list=next_delta[1])
+
+
+def solver(y: np.array, lamb: float, b_q_list=[]) -> np.array:
+    n = y.size
+    delta = [None] * n
+    beta = np.zeros(n)
+
+    delta[0] = DeltaCLM(y[0], b_q_list)
+
+    for i in range(n - 1):
+        delta[i + 1] = delta[i].forward(
+            lamb, y[i + 1])
+        print(f"delta_squared[{i + 1}]:", vars(delta[i + 1]))
+    beta[n - 1] = delta[n - 1].find_tangency(0)
+    for i in range(n - 1, 0, -1):
+        beta[i - 1] = delta[i-1].backward(next_beta=beta[i])
+
+    return beta
+
+
+if __name__ == '__main__':
+    beta2 = solver(np.array([1, 1, 2, 1]), 0.5, [-np.inf, 0, np.inf])
+    print(beta2)
