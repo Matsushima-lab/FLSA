@@ -6,15 +6,19 @@ import flsa_dp
 
 
 class ReturnTest(unittest.TestCase):
-    def test_easy_case(self):
+    def test_squared_easy_case(self):
         beta = flsa_dp.solver(np.array([0, 1]), 0.5)
         np.testing.assert_array_almost_equal(np.array(beta), np.array([0.5, 0.5]))
 
-    def test_from_dp_cpp(self):
+    def test_squared(self):
         beta = flsa_dp.solver(np.array(self.input_data), self.lam)
         np.testing.assert_array_almost_equal(
             np.array(beta), np.array(self.output_data), decimal=5
         )
+
+    def test_logistic(self):
+        beta = flsa_dp.solver(np.array([-1, -1, 1, -1, 1, 1]), 0.5, "logistic")
+        np.testing.assert_array_almost_equal(np.array(beta), np.array([-1.09861229, -1.09861229, 0, 0, 1.09861229, 1.09861229]))
 
 
 if __name__ == "__main__":
