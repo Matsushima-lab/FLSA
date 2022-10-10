@@ -146,6 +146,7 @@ class DeltaSquared(DeltaFunc):
         for t in range(len(self.knots)):
             if self.calc_derivative_at(self.knots[t], t) - g > 0:
                 self.tangency_intervals.append(t)
+                self.tangency_intervals.append(t)
                 return self.calc_inverse_spline(t,g)
         self.tangency_intervals.append(len(self.knots))
         return self.calc_inverse_spline(len(self.knots), g)
