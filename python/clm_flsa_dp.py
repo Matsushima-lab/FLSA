@@ -2,6 +2,7 @@ from flsa_dp import DeltaFunc
 import numpy as np
 import copy
 import scipy
+from functools import partial
 
 
 TMP_INF = 1e3
@@ -20,12 +21,26 @@ class DeltaCLM(DeltaFunc):
         self.tangency_intervals = []
         self.b_q_list = b_q_list
         self.basis_function_list = [
-            lambda x: -1/(np.exp(bq - x) + 1) for bq in b_q_list] + [lambda x: 1]
+            partial(self.basis_func, bq=bq) for bq in self.b_q_list] + [lambda x: 1]
+
+    def basis_func(self, x, bq):
+        if bq == np.inf:
+            return -1
+        elif bq == -np.inf:
+            return 0
+
+        return -1/(np.exp(x - bq) + 1)
 
     def find_tangency(self, g):
-        if self.calc_derivative_at(-np.inf, 0) - g > 0:
-            self.tangency_intervals.append(0)
+
+        if self.calc_derivative_at(-np.inf, 0) - g >= -EPS:
+            self.tangency_intervals.append(1)
             return -np.inf
+
+        if self.calc_derivative_at(np.inf, -1) - g <= EPS:
+            self.tangency_intervals.append(len(self.knots) - 1)
+            return np.inf
+
         for t in range(len(self.knots)-1):
             if self.calc_derivative_at(self.knots[t+1], t) - g > 0:
                 self.tangency_intervals.append(t+1)
@@ -37,24 +52,40 @@ class DeltaCLM(DeltaFunc):
         new = DeltaCLM()
         new.knots = copy.copy(self.knots)
         new.coef_list = copy.deepcopy(self.coef_list)
-        new.tangency_intervals = copy.copy(self.tangency_intervals)
+        new.tangency_intervals = self.tangency_intervals
         new.b_q_list = copy.copy(self.b_q_list)
-        new.basis_function_list = [
-            lambda x: -1/(np.exp(bq - x) + 1) for bq in new.b_q_list] + [lambda x: 1]
+        new.basis_function_list = self.basis_function_list
         return new
 
+    def find_knots_between_bs(self, bm, bp):
+        if bm == -np.inf:
+            left_knot_index = 0
+        for i, k in enumerate(self.knots):
+            if bm < k:
+                left_knot_index = i
+                break
+        if bp == np.inf:
+            right_knot_index = len(self.knots)
+        for i, k in enumerate(self.knots):
+            if bp < k:
+                let_knot_index = i
+        return
+
     def overwrite(self, left_new_knot, right_new_knot, lamb):
+        print(left_new_knot, right_new_knot, self.tangency_intervals)
         tmp_knots = self.knots[self.tangency_intervals[0]
             :self.tangency_intervals[1]]
 
-        if left_new_knot != -np.inf:
-            tmp_knots = [-np.inf, left_new_knot] + tmp_knots
-        if right_new_knot != np.inf:
-            tmp_knots = tmp_knots + [right_new_knot, np.inf]
-        if tmp_knots[0] != -np.inf:
+        print("knots", self.knots, tmp_knots)
+        if left_new_knot not in [-np.inf, np.inf]:
+            tmp_knots = [left_new_knot] + tmp_knots
+        if right_new_knot not in [-np.inf, np.inf]:
+            tmp_knots = tmp_knots + [right_new_knot]
+        if tmp_knots[0] not in [-np.inf, np.inf]:
             tmp_knots = [-np.inf] + tmp_knots
-        if tmp_knots[-1] != np.inf:
+        if tmp_knots[-1] not in [-np.inf, np.inf]:
             tmp_knots = tmp_knots + [np.inf]
+        print("knots", self.knots, tmp_knots)
         self.knots = tmp_knots
 
         tmp_coef_list = self.coef_list[self.tangency_intervals[0] -
@@ -100,12 +131,12 @@ class DeltaCLM(DeltaFunc):
         section_end = self.knots[t+1]
         if section_start == -np.inf:
             section_start = -TMP_INF
-            while self.calc_derivative_at(section_start, t) < d:
+            while self.calc_derivative_at(section_start, t) > d:
                 section_start *= TMP_INF
 
         if section_end == np.inf:
             section_end = TMP_INF
-            while self.calc_derivative_at(section_end, t) > d:
+            while self.calc_derivative_at(section_end, t) < d:
                 section_start *= TMP_INF
 
         assert(self.calc_derivative_at(section_start, t) <= d)
@@ -124,6 +155,11 @@ class DeltaCLM(DeltaFunc):
         return mid
 
     def calc_derivative_at(self, b, t):
+        if b==np.inf:
+            return self.coef_list[t][-1] - self.coef_list[t][-2]
+        elif b==-np.inf:
+            return self.coef_list[t][-1] - sum(self.coef_list[t][1:-1])
+
         return sum(
             [
                 c * bf(b)
@@ -154,5 +190,5 @@ def solver(y: np.array, lamb: float, b_q_list=[]) -> np.array:
 
 
 if __name__ == '__main__':
-    beta2 = solver(np.array([1, 1, 2, 1]), 0.5, [-np.inf, 0, np.inf])
+    beta2 = solver(np.array([1, 1, 2, 3, 1]), 0.1, [-np.inf, 0, 1, np.inf])
     print(beta2)
