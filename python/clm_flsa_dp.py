@@ -1,3 +1,4 @@
+from typing import List
 from flsa_dp import DeltaFunc
 import numpy as np
 import copy
@@ -165,7 +166,11 @@ class DeltaCLM(DeltaFunc):
         return DeltaCLM(knots=next_delta[0], coef_list=next_delta[1])
 
 
-def solver(y: np.array, lamb: float, b_q_list=[]) -> np.array:
+def solver(y: np.array, lamb: float, b_q_list: List, r: np.array = None) -> np.array:
+    if r is None:
+        r = np.zeros(y.size - 1)
+    else:
+        assert r.size == y.size - 1
     n = y.size
     delta = [None] * n
     beta = np.zeros(n)
@@ -178,7 +183,7 @@ def solver(y: np.array, lamb: float, b_q_list=[]) -> np.array:
         print(f"delta_squared[{i + 1}]:", vars(delta[i + 1]))
     beta[n - 1] = delta[n - 1].find_tangency(0)
     for i in range(n - 1, 0, -1):
-        beta[i - 1] = delta[i-1].backward(next_beta=beta[i])
+        beta[i - 1] = delta[i-1].backward(next_beta=beta[i], r=r[i-1])
 
     return beta
 
