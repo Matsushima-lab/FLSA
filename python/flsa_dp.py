@@ -93,6 +93,7 @@ class DeltaLogistic(DeltaFunc):
         self.tangency_intervals.append(len(self.knots))
         return np.inf
 
+
     def copy(self):
         new = DeltaLogistic()
         new.knots = copy.copy(self.knots)
