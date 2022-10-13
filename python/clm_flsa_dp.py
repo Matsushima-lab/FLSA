@@ -72,20 +72,14 @@ class DeltaCLM(DeltaFunc):
         return
 
     def overwrite(self, left_new_knot, right_new_knot, lamb):
-        print(left_new_knot, right_new_knot, self.tangency_intervals)
         tmp_knots = self.knots[self.tangency_intervals[0]
             :self.tangency_intervals[1]]
 
-        print("knots", self.knots, tmp_knots)
-        if left_new_knot not in [-np.inf, np.inf]:
-            tmp_knots = [left_new_knot] + tmp_knots
-        if right_new_knot not in [-np.inf, np.inf]:
-            tmp_knots = tmp_knots + [right_new_knot]
-        if tmp_knots[0] not in [-np.inf, np.inf]:
+        tmp_knots = [left_new_knot] + tmp_knots + [right_new_knot]
+        if tmp_knots==[] or tmp_knots[0] not in [-np.inf, np.inf]:
             tmp_knots = [-np.inf] + tmp_knots
-        if tmp_knots[-1] not in [-np.inf, np.inf]:
+        if tmp_knots==[] or tmp_knots[-1] not in [-np.inf, np.inf]:
             tmp_knots = tmp_knots + [np.inf]
-        print("knots", self.knots, tmp_knots)
         self.knots = tmp_knots
 
         tmp_coef_list = self.coef_list[self.tangency_intervals[0] -

@@ -7,7 +7,7 @@ import sys
 from functools import partial
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../python'))
-from clm_flsa_dp import DeltaCLM
+from clm_flsa_dp import DeltaCLM, solver
 
 EPS = 1e-5
 
@@ -52,7 +52,26 @@ class TestClmflsadp(unittest.TestCase):
         delta = delta.forward(0.1, 4)
         assert(delta.find_tangency(0.1)==np.inf)
         delta = delta.forward(0.1, 1)
-        print(vars(delta))
+
+    def test_overwrite(self):
+        delta = DeltaCLM(2, self.b_q_list)
+        delta.tangency_intervals = (1,1)
+        assert(delta.overwrite(-np.inf, np.inf, 0.1).knots == [-np.inf, np.inf])
+
+        delta.tangency_intervals = (1,1)
+        assert(delta.overwrite(-np.inf, 1, 0.1).knots == [-np.inf, 1, np.inf])
+
+        delta.tangency_intervals = (1,1)
+        assert(delta.overwrite(-1, np.inf, 0.1).knots == [-np.inf, -1, np.inf])
+
+        delta.tangency_intervals = (1,1)
+        assert(delta.overwrite(-1, 1, 0.1).knots == [-np.inf, -1, 1, np.inf])
+        
+
+    def test_solver_binary(self):
+        sol = solver(np.array([1, 2, 1]), 0.01,  [-np.inf, 0, np.inf])
+        print(sol)
+
 
 
 
