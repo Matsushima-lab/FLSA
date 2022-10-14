@@ -1,3 +1,4 @@
+from clm_flsa_dp import DeltaCLM, solver
 import unittest
 import scipy
 import copy
@@ -7,14 +8,12 @@ import sys
 from functools import partial
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../python'))
-from clm_flsa_dp import DeltaCLM, solver
 
 EPS = 1e-5
 
 
 class TestClmflsadp(unittest.TestCase):
     b_q_list = [-np.inf, -1, 0, 1, np.inf]
-
 
     def test_constructor(self):
         delta = DeltaCLM(3, self.b_q_list)
@@ -28,51 +27,56 @@ class TestClmflsadp(unittest.TestCase):
     def test_first_calc_derivative_at(self):
         delta = DeltaCLM(2, self.b_q_list)
         initv = delta.calc_derivative_at(-np.inf, 0)
-        assert(initv==-1)
-        v=initv
-        for b in range(-100,100,10):
+        assert(initv == -1)
+        v = initv
+        for b in range(-100, 100, 10):
             newv = delta.calc_derivative_at(b, 0)
             assert(delta.calc_derivative_at(b, 0) >= v)
             v = newv
         lastv = delta.calc_derivative_at(np.inf, 0)
         assert(lastv == 1)
-        assert(lastv>=v)
+        assert(lastv >= v)
 
     def test_find_tangency(self):
         delta = DeltaCLM(2, self.b_q_list)
-        assert(delta.find_tangency(-1)==-np.inf)
-        assert(delta.find_tangency(-2)==-np.inf)
+        assert(delta.find_tangency(-1) == -np.inf)
+        assert(delta.find_tangency(-2) == -np.inf)
         assert(abs(delta.find_tangency(0)+0.5) < EPS)
-        assert(delta.find_tangency(1)==np.inf)
-        assert(delta.find_tangency(2)==np.inf)
+        assert(delta.find_tangency(1) == np.inf)
+        assert(delta.find_tangency(2) == np.inf)
         assert(delta.find_tangency(-0.1) < delta.find_tangency(0.1))
 
     def test_forward(self):
         delta = DeltaCLM(2, self.b_q_list)
         delta = delta.forward(0.1, 4)
-        assert(delta.find_tangency(0.1)==np.inf)
+        assert(delta.find_tangency(0.1) == np.inf)
         delta = delta.forward(0.1, 1)
 
     def test_overwrite(self):
         delta = DeltaCLM(2, self.b_q_list)
-        delta.tangency_intervals = (1,1)
-        assert(delta.overwrite(-np.inf, np.inf, 0.1).knots == [-np.inf, np.inf])
+        delta.tangency_intervals = (1, 1)
+        assert(delta.overwrite(-np.inf, np.inf,
+               0.1).knots == [-np.inf, np.inf])
 
-        delta.tangency_intervals = (1,1)
+        delta.tangency_intervals = (1, 1)
         assert(delta.overwrite(-np.inf, 1, 0.1).knots == [-np.inf, 1, np.inf])
 
-        delta.tangency_intervals = (1,1)
+        delta.tangency_intervals = (1, 1)
         assert(delta.overwrite(-1, np.inf, 0.1).knots == [-np.inf, -1, np.inf])
 
-        delta.tangency_intervals = (1,1)
+        delta.tangency_intervals = (1, 1)
         assert(delta.overwrite(-1, 1, 0.1).knots == [-np.inf, -1, 1, np.inf])
-        
 
     def test_solver_binary(self):
-        sol = solver(np.array([1, 2, 1]), 0.01,  [-np.inf, 0, np.inf])
-        print(sol)
+        sol = solver(np.array([1, 2, 1]), 0.1,  [-np.inf, 0, np.inf])
+        print(sol[0])
+        assert(sol[0] == -2.197265625)
 
-
+    def test_solver_5(self):
+        sol = solver(np.array([1, 2, 3, 5, 5, 3, 1]),
+                     0.1,  [-np.inf, -2, 0, 1, 2, np.inf])
+        print(sol[0])
+        assert(sol[0] == -4.197120666503906)
 
 
 if __name__ == '__main__':

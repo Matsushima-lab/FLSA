@@ -73,13 +73,12 @@ class DeltaCLM(DeltaFunc):
         return
 
     def overwrite(self, left_new_knot, right_new_knot, lamb):
-        tmp_knots = self.knots[self.tangency_intervals[0]
-            :self.tangency_intervals[1]]
+        tmp_knots = self.knots[self.tangency_intervals[0]:self.tangency_intervals[1]]
 
         tmp_knots = [left_new_knot] + tmp_knots + [right_new_knot]
-        if tmp_knots==[] or tmp_knots[0] not in [-np.inf, np.inf]:
+        if tmp_knots[0] not in [-np.inf, np.inf]:
             tmp_knots = [-np.inf] + tmp_knots
-        if tmp_knots==[] or tmp_knots[-1] not in [-np.inf, np.inf]:
+        if tmp_knots[-1] not in [-np.inf, np.inf]:
             tmp_knots = tmp_knots + [np.inf]
         self.knots = tmp_knots
 
@@ -150,7 +149,7 @@ class DeltaCLM(DeltaFunc):
         return mid
 
     def calc_derivative_at(self, b, t):
-        if b==np.inf:
+        if b == np.inf:
             return self.coef_list[t][-1] - self.coef_list[t][-2]
         elif b==-np.inf:
             return self.coef_list[t][-1] - sum(self.coef_list[t][1:-1])
@@ -166,11 +165,7 @@ class DeltaCLM(DeltaFunc):
         return DeltaCLM(knots=next_delta[0], coef_list=next_delta[1])
 
 
-def solver(y: np.array, lamb: float, b_q_list: List, r: np.array = None) -> np.array:
-    if r is None:
-        r = np.zeros(y.size - 1)
-    else:
-        assert r.size == y.size - 1
+def solver(y: np.array, lamb: float, b_q_list: List,) -> np.array:
     n = y.size
     delta = [None] * n
     beta = np.zeros(n)
@@ -183,7 +178,7 @@ def solver(y: np.array, lamb: float, b_q_list: List, r: np.array = None) -> np.a
         print(f"delta_squared[{i + 1}]:", vars(delta[i + 1]))
     beta[n - 1] = delta[n - 1].find_tangency(0)
     for i in range(n - 1, 0, -1):
-        beta[i - 1] = delta[i-1].backward(next_beta=beta[i], r=r[i-1])
+        beta[i - 1] = delta[i-1].backward(next_beta=beta[i])
 
     return beta
 

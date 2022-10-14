@@ -54,19 +54,19 @@ class DeltaFunc(ABC):
         Args:
         Return; DeltaFunc
         """
-        self.bm = self.find_tangency(-lamb)
+        self.bm = self.find_tangency(-lamb) 
         self.bp = self.find_tangency(lamb)
         next_delta = self.copy()
         next_delta = next_delta.overwrite(self.bm, self.bp, lamb).add_loss(y)
         #next_delta = self.add_loss(next_yi)
         return next_delta
 
-    def backward(self, next_beta, r):
+    def backward(self, next_beta):
         """
         Args:
         Return:beta
         """
-        return max(min(next_beta+r, self.bp), self.bm)
+        return max(min(next_beta, self.bp), self.bm)
         """
         self.b is a float or a set of float that satisfies delta' = +-lambda
         Calculated in the process of "forward" method
