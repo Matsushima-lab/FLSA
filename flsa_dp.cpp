@@ -1,4 +1,4 @@
-void tf_dp(int n, double *y, double lam, double *beta) {
+void tf_dp(int n, double *y, double lam, bool *c, double *beta) {
   int i;
   int k;
   int l;
@@ -82,58 +82,67 @@ void tf_dp(int n, double *y, double lam, double *beta) {
   /* 各イタレーションでδ_k'の計算*/
   /* Now iterations 2 through n-1 */
   for (k = 1; k < n - 1; k++) {
-    /* Compute lo: step up from l until the
-       derivative is greater than -lam */
-
-    alo = afirst;
-    blo = bfirst;
-    for (lo = l; lo <= r; lo++) {
-      /*
-      alo, blo: その区間の直線の方程式は　δ'(b)= alo*b+blo
-      x[lo]: δのノットのx座標
-      */
-      /*
-      δ_k'(b)>-λとなったらbreak
-      */
-      if (alo * x[lo] + blo > -lam) break;
-      alo += a[lo];
-      blo += b[lo];
+    if(c[i]){
+      afirst += 1;
+      alast -= y[k + 1];
+      bfirst -= 1;
+      blast += y[k + 1];
     }
+    else{
+      /* Compute lo: step up from l until the
+        derivative is greater than -lam */
 
-    /* Compute hi: step down from r until the
-       derivative is less than lam */
-    ahi = alast;
-    bhi = blast;
-    for (hi = r; hi >= lo; hi--) {
-      if (-ahi * x[hi] - bhi < lam) break;
-      ahi += a[hi];
-      bhi += b[hi];
+      alo = afirst;
+      blo = bfirst;
+      for (lo = l; lo <= r; lo++) {
+        /*
+        alo, blo: その区間の直線の方程式は　δ'(b)= alo*b+blo
+        x[lo]: δのノットのx座標
+        */
+        /*
+        δ_k'(b)>-λとなったらbreak
+        */
+        if (alo * x[lo] + blo > -lam) break;
+        alo += a[lo];
+        blo += b[lo];
+      }
+
+      /* Compute hi: step down from r until the
+        derivative is less than lam */
+      ahi = alast;
+      bhi = blast;
+      for (hi = r; hi >= lo; hi--) {
+        if (-ahi * x[hi] - bhi < lam) break;
+        ahi += a[hi];
+        bhi += b[hi];
+      }
+
+      /*
+        iter毎にδ_k'(b)=-λとなるbについて, knotを追加(id:l, x[l], a[l],
+        b[l])をupdate iter毎にδ_k'(b)=λとなるbについて, knotを追加(id:r, x[r],
+        a[r], b[r])をupdate
+      */
+      /* Compute the negative knot */
+      tm[k] = (-lam - blo) / alo;
+      l = lo - 1;
+      x[l] = tm[k];
+
+      /* Compute the positive knot */
+      tp[k] = (lam + bhi) / (-ahi);
+      r = hi + 1;
+      x[r] = tp[k];
+
+      /* Update a and b */
+      a[l] = alo;
+      b[l] = blo + lam;
+      a[r] = ahi;
+      b[r] = bhi + lam;
+
+      afirst = 1;
+      bfirst = -y[k + 1] - lam;
+      alast = -1;
+      blast = y[k + 1] - lam;
     }
-
-    /*
-      iter毎にδ_k'(b)=-λとなるbについて, knotを追加(id:l, x[l], a[l],
-      b[l])をupdate iter毎にδ_k'(b)=λとなるbについて, knotを追加(id:r, x[r],
-      a[r], b[r])をupdate
-    */
-    /* Compute the negative knot */
-    tm[k] = (-lam - blo) / alo;
-    l = lo - 1;
-    x[l] = tm[k];
-
-    /* Compute the positive knot */
-    tp[k] = (lam + bhi) / (-ahi);
-    r = hi + 1;
-    x[r] = tp[k];
-
-    /* Update a and b */
-    a[l] = alo;
-    b[l] = blo + lam;
-    a[r] = ahi;
-    b[r] = bhi + lam;
-    afirst = 1;
-    bfirst = -y[k + 1] - lam;
-    alast = -1;
-    blast = y[k + 1] - lam;
   }
   /*δ_Nの計算はここまで*/
 
