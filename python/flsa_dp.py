@@ -54,7 +54,7 @@ class DeltaFunc(ABC):
         Args:
         Return; DeltaFunc
         """
-        self.bm = self.find_tangency(-lamb)
+        self.bm = self.find_tangency(-lamb) 
         self.bp = self.find_tangency(lamb)
         next_delta = self.copy()
         next_delta = next_delta.overwrite(self.bm, self.bp, lamb).add_loss(y)
