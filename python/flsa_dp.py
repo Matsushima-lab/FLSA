@@ -61,12 +61,12 @@ class DeltaFunc(ABC):
         #next_delta = self.add_loss(next_yi)
         return next_delta
 
-    def backward(self, next_beta, r):
+    def backward(self, next_beta):
         """
         Args:
         Return:beta
         """
-        return max(min(next_beta+r, self.bp), self.bm)
+        return max(min(next_beta, self.bp), self.bm)
         """
         self.b is a float or a set of float that satisfies delta' = +-lambda
         Calculated in the process of "forward" method
@@ -224,12 +224,8 @@ class DeltaSquared(DeltaFunc):
         )
 
 
-def solver(y: np.array, lamb: float, loss: str = "squared", r: np.array = None) -> np.array:
+def solver(y: np.array, lamb: float, loss: str = "squared") -> np.array:
     #print("solving")
-    if r is None:
-        r = np.zeros(y.size - 1)
-    else:
-        assert r.size == y.size - 1
     n = y.size
     delta = [None] * n
     beta = np.zeros(n)
@@ -245,7 +241,7 @@ def solver(y: np.array, lamb: float, loss: str = "squared", r: np.array = None) 
         #print(f"delta_squared[{i + 1}]:", vars(delta[i + 1]))
     beta[n - 1] = delta[n - 1].find_tangency(0)
     for i in range(n - 1, 0, -1):
-        beta[i - 1] = delta[i-1].backward(next_beta=beta[i], r=r[i - 1])
+        beta[i - 1] = delta[i-1].backward(next_beta=beta[i])
 
     return beta
 
