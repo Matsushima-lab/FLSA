@@ -232,7 +232,7 @@ class DeltaSquared(DeltaFunc):
         )
 
 
-def solver(y: np.array, lamb: np.array, loss: str = "squared") -> np.array:
+def solver(y: np.array, lamb, loss: str = "squared") -> np.array:
     #print("solving")
     n = y.size
     delta = [None] * n
