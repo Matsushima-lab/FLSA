@@ -54,11 +54,19 @@ class DeltaFunc(ABC):
         Args:
         Return; DeltaFunc
         """
-        self.bm = self.find_tangency(-lamb)
-        self.bp = self.find_tangency(lamb)
+        if lamb == np.inf:
+            self.bm = -np.inf
+            self.bp = np.inf
+        else:
+            self.bm = self.find_tangency(-lamb)
+            self.bp = self.find_tangency(lamb)
+
         next_delta = self.copy()
-        next_delta = next_delta.overwrite(self.bm, self.bp, lamb).add_loss(y)
-        #next_delta = self.add_loss(next_yi)
+
+        if lamb == np.inf:
+            next_delta = next_delta.add_loss(y)
+        else:
+            next_delta = next_delta.overwrite(self.bm, self.bp, lamb).add_loss(y)
         return next_delta
 
     def backward(self, next_beta):
@@ -224,11 +232,16 @@ class DeltaSquared(DeltaFunc):
         )
 
 
-def solver(y: np.array, lamb: float, loss: str = "squared") -> np.array:
+def solver(y: np.array, lamb: np.array, loss: str = "squared") -> np.array:
     #print("solving")
     n = y.size
     delta = [None] * n
     beta = np.zeros(n)
+
+    if type(lamb) is float:
+        lamb = np.full(n - 1, lamb)
+    else:
+        assert lamb.size == n - 1
 
     if loss == "squared":
         delta[0] = DeltaSquared(y[0]) 
@@ -237,17 +250,19 @@ def solver(y: np.array, lamb: float, loss: str = "squared") -> np.array:
         
     for i in range(n - 1):
         delta[i + 1] = delta[i].forward(
-            lamb, y[i + 1])
+            lamb[i], y[i + 1])
         #print(f"delta_squared[{i + 1}]:", vars(delta[i + 1]))
     beta[n - 1] = delta[n - 1].find_tangency(0)
     for i in range(n - 1, 0, -1):
-        beta[i - 1] = delta[i-1].backward(next_beta=beta[i])
+        beta[i - 1] = delta[i - 1].backward(next_beta=beta[i])
 
     return beta
 
 
 if __name__ == "__main__":
     beta1 = solver(np.array([0,1]), 0.5)
-    beta2 = solver(np.array([-1, -1, 1, -1, 1, 1]), 0.5, "logistic")
+    #beta2 = solver(np.array([-1, -1, 1, -1, 1, 1]), 0.5, "logistic")
+    beta3 = solver(np.array([1,2,10,5]), np.full(3,np.inf))
     print(beta1)
-    print(beta2)
+    #print(beta2)
+    print(beta3)
