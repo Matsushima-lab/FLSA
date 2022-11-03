@@ -2,6 +2,7 @@
 #include "solve_block_coordinate_descent.hpp"
 #include <iostream>
 #include <vector>
+#include <deque>
 #include <algorithm>
 #include <math.h>
 
@@ -14,7 +15,7 @@ double sigmoid(double x) {
     return 1 / (exp(-x) + 1);
 }
 
-double clm_derivative(size_t q, double x, double *b, size_t y) {
+double clm_derivative(int q, double x, double *b, int y) {
     if (y == 1){
         return 1 - sigmoid(b[0] - x);
     }
@@ -24,29 +25,26 @@ double clm_derivative(size_t q, double x, double *b, size_t y) {
     return 1 - sigmoid(b[y - 2] - x) - sigmoid(b[y - 1] - x);
 }
 
-void solve_square(size_t n, size_t q, double *f, double *b, double *y, double *fj) {
+void solve_square(int n, int q, double *f, double *b, double *y, double *solver_y) {
     double l_inv = 1/L;
-    double *solver_y;
-    solver_y = new double[n];
-    // sort
 
     // calc solver_y
-    for (size_t i = 0; i < n; i++){
+    for (int i = 0; i < n; i++){
         solver_y[i] = l_inv * clm_derivative(q, f[i], b, y[i]);
     }
     return;
 }
 
-void set_argsort(vector<vector<size_t>> &argsort, vector<vector<bool>> &argsort_c, vector<vector<size_t>> &argsort_inv, vector<vector<double>> const &x){
-    size_t d = x.size();
-    size_t n = x[0].size();
-    size_t i;
-    for (size_t j = 0; j<d; j++){
+void set_argsort(vector<vector<int>> &argsort, vector<deque<bool>> &argsort_c, vector<vector<int>> &argsort_inv, vector<vector<double>> const &x){
+    int d = x.size();
+    int n = x[0].size();
+    int i;
+    for (int j = 0; j<d; j++){
         vector<double> xj = x[j];
         argsort[j];
         iota(argsort[j].begin(), argsort[j].end(), 0);
         sort(argsort[j].begin(), argsort[j].end(),
-            [&xj](size_t left, size_t right) -> bool {
+            [&xj](int left, int right) -> bool {
                   // sort indices according to corresponding array element
                   return xj[left] < xj[right];
               });
@@ -61,25 +59,29 @@ void set_argsort(vector<vector<size_t>> &argsort, vector<vector<bool>> &argsort_
 
 }
 
-void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<double>>f, vector<double> y , size_t q, double lam) {
+void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<double>>f, vector<double> y , int q, double lam) {
     double b[] = {-1, 0, 1};
-    size_t n = y.size();
-    size_t d = x.size();
+    int n = y.size();
+    int d = x.size();
     vector<double> fsum(n, 0);
     vector<double> fsumtmp(n, 0);
-    vector<vector<size_t> > argsort(d, vector<size_t>(n));
-    vector<vector<bool> > argsort_c(d, vector<bool>(n-1, 0));
-    vector<vector<size_t> > argsort_inv(d, vector<size_t>(n));
-
+    vector<vector<int>> argsort(d, vector<int>(n));
+    vector<deque<bool>> argsort_c(d,deque<bool>(n));
+    vector<vector<int>> argsort_inv(d, vector<int>(n));
     set_argsort(argsort, argsort_c, argsort_inv, x);
+    vector<double> solver_y(n);
+    vector<double> sorted_solver_y(n);
 
     while (1) {
-        for (size_t j = 0; j < d; j++){
-            for (size_t i = 0; i < n; i++){
+        for (int j = 0; j < d; j++){
+            
+            solve_square(n, q, &fsum[0], b, &y[0], &solver_y[0]);
+            for (int i = 0; i < n; i++){
                 fsumtmp[i] = fsum[i] - f[j][i];
+                sorted_solver_y[i] = solver_y[argsort[j][i]];
             }
-            solve_square(n, q, &fsum[0], b, &y[0], &f[j][0]);
-            for (size_t i = 0; i < n; i++){
+            tf_dp(n, &y[0], lam, &argsort_c[j][0], &f[j][0]);
+            for (int i = 0; i < n; i++){
                 fsum[i] = fsumtmp[i] + f[j][i];
             }
         }
