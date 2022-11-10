@@ -5,13 +5,15 @@
 #include <deque>
 #include <algorithm>
 #include <math.h>
+#include <time.h>
+#include <chrono>
 
 using namespace std;
 
 const double L = 1;
-const double EPS = 1e-4;
-const int ITER = 5000;
-const int pn = 50;
+const double EPS = 1e-8;
+const int ITER = 10000;
+const int pn = 500;
 double l_inv = 1/(L);
 
 double sigmoid(double x) {
@@ -30,12 +32,14 @@ double clm_derivative(int q, double x, double *b, int y) {
 
 
 void solve_square(const int n, const int q, double *fsum, double* f, double *b, int *y, double *solver_y) {
-    ;
+    // cout << "solever y";
 
     // calc solver_y
     for (int i = 0; i < n; i++){
         solver_y[i] = f[i] - l_inv * clm_derivative(q, fsum[i], b, y[i]);
+        // cout << solver_y[i] << " ";
     }
+    // cout << "\n";
     return;
 }
 
@@ -134,7 +138,7 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
             } else if (gsign[pre_i] == 2 || gsign[i + 1] == 2) {
                 temp_loss = calc_min_subopt(temp_loss, lam);
             }
-            // cout << gsign[pre_i] << "~"<< gsign[i + 1] << ": " << temp_loss << " ";
+            // cout << temp_loss << " ";
             // cout << pre_i <<"-"<< i << ";   ";
             subopt += abs(temp_loss);
             for (int j = pre_i; j <= i; j++){
@@ -158,6 +162,7 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
     double lastloss;
     int n = y.size();
     int d = x.size();
+    double duration = 0;
     vector<double> fsum(n, 0);
     vector<double> fsumtmp(n, 0);
     vector<vector<int>> argsort(d, vector<int>(n));
@@ -177,6 +182,8 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
     // while (1) {
 
     for (int k=0; k<ITER; k++) {
+        chrono::system_clock::time_point  start, end; // 型は auto で可
+        start = chrono::system_clock::now();
         for (int j = 0; j < d; j++){
             // cout << "fsum: ";
             // for (int i = 0; i < n; i++){
@@ -201,6 +208,8 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
             }
             // cout << "\n";
         }
+        end = chrono::system_clock::now();
+        duration += chrono::duration_cast<std::chrono::microseconds>(end-start).count(); 
         subopt = 0;
         for (int j = 0; j < d; j++){
             for (int i = 0; i < n; i++){
@@ -217,11 +226,14 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
         if (subopt < EPS) {
 
             cout << "converged: " << k << "\n";
+            cout << duration << "\n";
             break;
         }
         lastloss = loss;
 
     }
+
+    cout << "duration: " << duration << "\n";
 }
 
 
@@ -249,12 +261,16 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
     vector<double> sorted_fsum(n);
     vector<double> sorted_f(n);
     vector<double> sorted_solver_y(n);
+    double duration = 0;
 
    
     vector<vector<double>> gradient(d, vector<double>(n));
     for (int k=0; k<ITER; k++) {
         subopt= 0;
         // cout << "fsum: ";
+
+        chrono::system_clock::time_point  start, end; // 型は auto で可
+        start = chrono::system_clock::now();
         for (int i = 0; i < n; i++){
 
             fsum[i] = 0;
@@ -272,6 +288,9 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
             }
             subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, &argsort_c[j][0], &sorted_y[0], &gradient[j][0]);
         }
+
+        end = chrono::system_clock::now();
+        duration += chrono::duration_cast<std::chrono::microseconds>(end-start).count(); 
 
         double loss =  calc_loss(fsum, y, b, q, f, argsort, lam);
         if (k%pn==0){
@@ -307,4 +326,6 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
         // cout << " . subopt" << " : "<<subopt << "\n";
         
     }
+
+    cout << "duration: " << duration << "\n";
 }

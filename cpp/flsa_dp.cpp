@@ -44,7 +44,7 @@ void tf_dp(int n, double *y, double lam, bool *c, double *beta) {
   /*
   tm, tp:ψ_kの範囲が[tm, tp]
   */
-
+// TODO: debug c[0]=true. It might be not working
   if (c[0]){
     l = n;
     r = n - 1;
