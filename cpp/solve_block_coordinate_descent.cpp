@@ -9,12 +9,13 @@
 #include <chrono>
 
 using namespace std;
-
-const double L = 1;
-const double EPS = 1e-8;
-const int ITER = 10000;
-const int pn = 500;
+// L must be less than 1
+const double L = 0.3;
+const double EPS = 1e-6;
+const int ITER = 10000000;
+const int pn = 5000;
 double l_inv = 1/(L);
+double t0 = 100;
 
 double sigmoid(double x) {
     return 1 / (exp(-x) + 1);
@@ -31,13 +32,15 @@ double clm_derivative(int q, double x, double *b, int y) {
 }
 
 
-void solve_square(const int n, const int q, double *fsum, double* f, double *b, int *y, double *solver_y) {
+void solve_square(const int n, const int q, double *fsum, double* f, double *b, int *y, double *solver_y, int iter) {
+    double grad;
     // cout << "solever y";
 
     // calc solver_y
     for (int i = 0; i < n; i++){
-        solver_y[i] = f[i] - l_inv * clm_derivative(q, fsum[i], b, y[i]);
-        // cout << solver_y[i] << " ";
+        grad = clm_derivative(q, fsum[i], b, y[i]);
+        solver_y[i] = f[i] - l_inv * grad;
+        // cout << clm_derivative(q, fsum[i], b, y[i])<< ";"<<solver_y[i] << ":" << f[i]<<" ";
     }
     // cout << "\n";
     return;
@@ -112,6 +115,7 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
         if (f[i - 1] > f[i]){
             gsign[i] = 1;
         }
+        // else if (abs(f[i - 1]-f[i]) < EPS/n){
         else if (f[i - 1]==f[i]){
             gsign[i] = 2;
         }
@@ -191,7 +195,7 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
             // }
             // cout << "\n";
 
-            solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0]);
+            solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k);
 
             for (int i = 0; i < n; i++){
                 fsumtmp[i] = fsum[i] - f[j][i];
@@ -219,12 +223,12 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
             }
             subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, &argsort_c[j][0], &sorted_y[0], &gradient[j][0]);
         }
+        double loss =  calc_loss(fsum, y, b, q, f, argsort, lam);
         // cout << "subopt" << " : "<<subopt << "\n";
         if (k%pn==0){
-            cout << " . subopt" << " : "<<subopt << "\n";
+            cout <<"loss: " << loss <<" , subopt" << " : "<<subopt << "\n";
         }
         if (subopt < EPS) {
-
             cout << "converged: " << k << "\n";
             cout << duration << "\n";
             break;
@@ -316,7 +320,7 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
                 //     continue;
                 // }
 
-                f[j][i] -= l_inv * gradient[j][argsort_inv[j][i]];
+                f[j][i] -= l_inv / sqrt(t0 + k) * gradient[j][argsort_inv[j][i]];
                 // cout <<i<<argsort_inv[j][i]<<gradient[j][argsort_inv[j][i]]<<f[j][i] << " ";
                 // cout <<f[j][i] << " ";
             }
