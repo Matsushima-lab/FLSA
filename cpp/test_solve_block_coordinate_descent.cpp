@@ -7,6 +7,7 @@
 #include <math.h>
 #include <string>
 #include <fstream>
+#include <stdexcept>
 
 using namespace std;
 
@@ -85,32 +86,35 @@ void print(std::vector<T> const &input, std::vector<int> const &index)
 // -2.08495 0.499999 1.37134 0.286575 -1.37134 
 
 int main(){
-    // double yi;
-    // vector<vector<double>> data = csv2vector("/home/iyori/work/gam/experiments/datasets/ordinal-regression/automobile/matlab/train_automobile.0");
-    // vector<vector<double>> x{};
-    // vector<int> y{};
-    // for (vector<double>& i : data){
-    //     i[0] = -1e-4;
-    //     yi = i.back();
-    //     i.pop_back();
-    //     x.push_back(i);
-    //     y.push_back((int) yi);
-    // }
+    double yi;
+    vector<vector<double>> data = csv2vector("/home/iyori/work/gam/experiments/datasets/ordinal-regression/automobile/matlab/train_automobile.0");
+    int d = data[0].size() - 1;
+    int n = data.size();
+    vector<vector<double>> x(d,vector<double>{});
+    vector<int> y{};
+    for (vector<double>& i : data){
+        if (i.size()!=d+1){
+            throw std::invalid_argument("received negative value");
+        }
+        for (size_t j=0; j<d; j++){
+            x[j].push_back(i[j]);
+        }
+        y.push_back((int) i[d]);
+    }
 
     // vector<vector<double>> x{{0,1,3,3,4}};
 // , {8,3,0,2,3,4,1,1,2,1}
 
     // vector<vector<double>> x{{4,1,3,6,2,7,4,9,0,2},{6,8,3,8,0,4,7,1,8,9},{1,2,5,3,3,0,5,9,2,6}};
 
-    vector<vector<double>> x{{0,1,1}};
+    // vector<vector<double>> x{{0,1,1}};
     // vector<int> y{1,2,5,3,1,1,3,2,2,4};
 
-    vector<int> y{2,2,1};
+    // vector<int> y{2,2,1};
 
-    double b[] = {0};
-    int q = 2;
-    int n = x[0].size();
-    int d = x.size();
+    double b[] = {-3,-1,1,3,5};
+    int q = 6;
+    cout << n << ", " << d << "\n";
     double lam = 0.1;
     vector<vector<double>> f(d, vector<double>(n));
     vector<vector<double>> f1(d, vector<double>(n));
@@ -137,14 +141,14 @@ int main(){
     //     print(argsort_inv[j]);
     // }
 
-    solve_block_coordinate_descent(x, f, y, q, lam, b);
+    // solve_block_coordinate_descent(x, f, y, q, lam, b);
     
-    for (int j = 0; j < d; j++){
-        print(f[j]);
-    }
+    // for (int j = 0; j < d; j++){
+    //     print(f[j]);
+    // }
 
     // cout << "_____________________________________________\n";
-    // solve_gradient_descent(x, f1, y, q, lam, b);
+    solve_gradient_descent(x, f1, y, q, lam, b);
     // for (int j = 0; j < d; j++){
     //     print(f1[j]);
     // }

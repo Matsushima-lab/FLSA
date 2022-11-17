@@ -7,15 +7,18 @@
 #include <math.h>
 #include <time.h>
 #include <chrono>
+#include <stdexcept>
 
 using namespace std;
 // L must be less than 1
-const double L = 0.25;
-const double EPS = 1e-6;
-const int ITER = 20;
-const int pn = 1;
-double l_inv = 1/(L);
-double t0 = 100;
+const double L = 10000;
+const double EPS = 1e-3;
+const int ITER = 1000000;
+const double LOG2 = 0.693147;
+const int pn = 1000;
+const double l_inv = 1/(L);
+const double t0 = 10000;
+const double steepest_linv = sqrt(t0)/L;
 
 double sigmoid(double x) {
     return 1 / (exp(-x) + 1);
@@ -34,31 +37,47 @@ double clm_derivative(int q, double x, double *b, int y) {
 
 void solve_square(const int n, const int q, double *fsum, double* f, double *b, int *y, double *solver_y, int iter) {
     double grad;
-    cout << "solever y :  ";
+    // cout << "solever y";
 
     // calc solver_y
     for (int i = 0; i < n; i++){
         grad = clm_derivative(q, fsum[i], b, y[i]);
         solver_y[i] = f[i] - l_inv * grad;
-        cout << clm_derivative(q, fsum[i], b, y[i])<< ";"<<solver_y[i] << ":" << f[i]<<" ";
+        // cout << clm_derivative(q, fsum[i], b, y[i])<< ";"<<solver_y[i] << ":" << f[i]<<" ";
     }
-    cout << "\n";
+    // cout << "\n";
     return;
 }
 
-double calc_loss(vector<double> fsum, vector<int> y, double *b, int q, vector<vector<double>> f, vector<vector<int>> argsort, double lam){
+double log1pexpz(double z){
+    if (z < 0)
+        return z + log1p(exp(-z));
+    else 
+        return log1p(exp(z));
+}
+
+double calc_objective(vector<double> fsum, vector<int> y, double *b, int q, vector<vector<double>> f, vector<vector<int>> argsort, double lam){
     double loss;
     // cout << "loss";
     for (size_t i=0; i < y.size(); i++){
         if (y[i] == 1){
-            loss -= log(sigmoid(b[1] - fsum[i]));
+            loss += log1pexpz(fsum[i] - b[1]);
         }
         else if (y[i] == q){
-            loss -= log(1 - sigmoid(b[q - 1] - fsum[i]));
+            loss += log1pexpz(b[q - 1] - fsum[i]);
         }else {
-            loss -= log(sigmoid(b[y[i] - 1] - fsum[i]) - sigmoid(b[y[i] - 2] - fsum[i]));
+            double delta = b[y[i] - 1] - b[y[i] - 2];
+            double gamma = b[y[i] - 2] - fsum[i];
+            double c1;
+            if (delta < LOG2) c1 = log(-expm1(-delta));
+            else c1 = log1p(-exp(-delta));
+            loss -= c1 - log1pexpz(-gamma-delta) - log1pexpz(gamma);
         }
-        // cout << loss << " " << fsum[i];
+        if (loss==INFINITY){
+            // cout <<i<<" "<< loss << ":" << fsum[i]<<","<<y[i]<<"\t";
+            // throw std::invalid_argument("received negative value");
+        }
+        // cout << loss << ":" << fsum[i]<<","<<y[i]<<"\t";
     }
     // cout << "\n";
     for (size_t j=0; j < f.size() - 1; j++){
@@ -126,10 +145,10 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
     }
     // cout << "\n";
     int pre_i = 0;
-    cout << "temp_loss: " << endl;
+    // cout << "temp_loss: " << endl;
     for (int i = 0; i < n; i++){
         temp_loss += clm_derivative(q, fsum[i], b, y[i]);
-        cout << temp_loss << " -> ";
+        // cout << temp_loss << " -> ";
         if (!c[i]) {
             if (gsign[pre_i] < 2) {
                 temp_loss -= gsign[pre_i] * lam;
@@ -142,7 +161,7 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
             } else if (gsign[pre_i] == 2 || gsign[i + 1] == 2) {
                 temp_loss = calc_min_subopt(temp_loss, lam);
             }
-            cout << temp_loss << " ";
+            // cout << temp_loss << " ";
             // cout << pre_i <<"-"<< i << ";   ";
             subopt += abs(temp_loss);
             for (int j = pre_i; j <= i; j++){
@@ -154,7 +173,7 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
             temp_loss = 0;
         }
     }
-    cout << "\n";
+    // cout << "\n";
     return subopt;
 }
 
@@ -180,7 +199,8 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
     vector<double> sorted_fsum(n);
     vector<double> sorted_f(n);
     vector<vector<double>> gradient(d, vector<double>(n));
-    double flsa_lam = l_inv * lam * 0.5;
+    double flsa_lam = l_inv * lam;
+    cout << "flsa lam: " << flsa_lam << "\n";
 
     double subopt;
 
@@ -225,7 +245,7 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
             }
             subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, &argsort_c[j][0], &sorted_y[0], &gradient[j][0]);
         }
-        double loss =  calc_loss(fsum, y, b, q, f, argsort, lam);
+        double loss =  calc_objective(fsum, y, b, q, f, argsort, lam);
         // cout << "subopt" << " : "<<subopt << "\n";
         if (k%pn==0){
             cout <<"loss: " << loss <<" , subopt" << " : "<<subopt << "\n";
@@ -298,7 +318,7 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
         end = chrono::system_clock::now();
         duration += chrono::duration_cast<std::chrono::microseconds>(end-start).count(); 
 
-        double loss =  calc_loss(fsum, y, b, q, f, argsort, lam);
+        double loss =  calc_objective(fsum, y, b, q, f, argsort, lam);
         if (k%pn==0){
             cout << "loss: " << loss;
             cout << " . subopt" << " : "<<subopt << "\n";
@@ -322,7 +342,7 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
                 //     continue;
                 // }
 
-                f[j][i] -= l_inv / sqrt(t0 + k) * gradient[j][argsort_inv[j][i]];
+                f[j][i] -= steepest_linv / sqrt(t0 + k) * gradient[j][argsort_inv[j][i]];
                 // cout <<i<<argsort_inv[j][i]<<gradient[j][argsort_inv[j][i]]<<f[j][i] << " ";
                 // cout <<f[j][i] << " ";
             }
