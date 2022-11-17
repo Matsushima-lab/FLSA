@@ -3,11 +3,11 @@
 using namespace std;
 
 int main(){
-    int n = 4;
-    double y[] = {1,2,3,1};
-    bool c[] = {1,0,1};
+    int n = 3;
+    double y[] = {0,1,1};
+    bool c[] = {1,0};
     double beta[n];
-    double lam = 0.1;
+    double lam = 0.01;
     tf_dp(n, y,lam, c, beta);
     for (int i=0 ; i<n ; i++ )
     {

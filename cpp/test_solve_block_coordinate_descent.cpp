@@ -100,19 +100,18 @@ int main(){
     // vector<vector<double>> x{{0,1,3,3,4}};
 // , {8,3,0,2,3,4,1,1,2,1}
 
-    vector<vector<double>> x{{1,4,2,3,2,9,4,1,2,0},{4,1,3,6,2,7,4,9,0,2},{6,8,3,8,0,4,7,1,8,9},{1,2,5,3,3,0,5,9,2,6}};
+    // vector<vector<double>> x{{4,1,3,6,2,7,4,9,0,2},{6,8,3,8,0,4,7,1,8,9},{1,2,5,3,3,0,5,9,2,6}};
 
-    // vector<vector<double>> x{{1,2}, {1,2}};
-    // -1.37134 0.404811 -1.37134 
-    // vector<int> y{1,2,5,3,1,1,3,2,2,4,1,1,2,1,4,4,3,5,3,5};
+    vector<vector<double>> x{{0,1,1}};
+    // vector<int> y{1,2,5,3,1,1,3,2,2,4};
 
-    vector<int> y{1,2,5,3,1,1,5,2,2,4};
+    vector<int> y{2,2,1};
 
-    double b[] = {-3,-1,1,3,5};
-    int q = 6;
+    double b[] = {0};
+    int q = 2;
     int n = x[0].size();
     int d = x.size();
-    double lam = 1;
+    double lam = 0.1;
     vector<vector<double>> f(d, vector<double>(n));
     vector<vector<double>> f1(d, vector<double>(n));
     vector<double> fsum(n, 0);
@@ -138,17 +137,17 @@ int main(){
     //     print(argsort_inv[j]);
     // }
 
-    // solve_block_coordinate_descent(x, f, y, q, lam, b);
+    solve_block_coordinate_descent(x, f, y, q, lam, b);
     
-    // for (int j = 0; j < d; j++){
-    //     print(f[j]);
-    // }
-
-    cout << "_____________________________________________\n";
-    solve_gradient_descent(x, f1, y, q, lam, b);
     for (int j = 0; j < d; j++){
-        print(f1[j]);
+        print(f[j]);
     }
+
+    // cout << "_____________________________________________\n";
+    // solve_gradient_descent(x, f1, y, q, lam, b);
+    // for (int j = 0; j < d; j++){
+    //     print(f1[j]);
+    // }
 
 
 }

@@ -51,7 +51,7 @@ void tf_dp(int n, double *y, double lam, bool *c, double *beta) {
     afirst = 2;
     bfirst = -y[0] - y[1];
     alast = -afirst;
-    blast = -alast;
+    blast = -bfirst;
   }
   else{
     tm[0] = -lam + y[0];
