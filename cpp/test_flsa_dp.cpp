@@ -5,7 +5,7 @@ using namespace std;
 int main(){
     int n = 3;
     double y[] = {0,1,1};
-    bool c[] = {1,0};
+    int c[] = {1,0};
     double beta[n];
     double lam = 0.01;
     tf_dp(n, y,lam, c, beta);

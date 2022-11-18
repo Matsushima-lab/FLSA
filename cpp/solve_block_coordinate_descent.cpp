@@ -10,15 +10,10 @@
 #include <stdexcept>
 
 using namespace std;
-// L must be less than 1
-const double L = 10000;
-const double EPS = 1e-3;
-const int ITER = 1000000;
+const double EPS = 1e-4;
+const int ITER = 10000;
 const double LOG2 = 0.693147;
-const int pn = 1000;
-const double l_inv = 1/(L);
-const double t0 = 10000;
-const double steepest_linv = sqrt(t0)/L;
+const int pn = 100;
 
 double sigmoid(double x) {
     return 1 / (exp(-x) + 1);
@@ -35,7 +30,7 @@ double clm_derivative(int q, double x, double *b, int y) {
 }
 
 
-void solve_square(const int n, const int q, double *fsum, double* f, double *b, int *y, double *solver_y, int iter) {
+void solve_square(const int n, const int q, double *fsum, double* f, double *b, const int *y, double *solver_y, int iter, const double l_inv) {
     double grad;
     // cout << "solever y";
 
@@ -89,7 +84,7 @@ double calc_objective(vector<double> fsum, vector<int> y, double *b, int q, vect
 }
     
 
-void set_argsort(vector<vector<int>> &argsort, vector<deque<bool>> &argsort_c, vector<vector<int>> &argsort_inv, vector<vector<double>> const &x){
+void set_argsort(vector<vector<int>> &argsort, vector<vector<int>> &argsort_c, vector<vector<int>> &argsort_inv, vector<vector<double>> const &x){
     int d = x.size();
     int n = x[0].size();
     int i;
@@ -121,7 +116,7 @@ double calc_min_subopt(double loss, double lam){
     }
 }
 
-double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, double lam, bool *c, int *y, double *gradient){
+double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, double lam, const vector<int> c, int *y, double *gradient){
     double subopt;
     double temp_loss;
     bool is_v_equivalent;
@@ -145,11 +140,11 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
     }
     // cout << "\n";
     int pre_i = 0;
-    // cout << "temp_loss: " << endl;
-    for (int i = 0; i < n; i++){
+    // cout << "temp_loss: "<< endl;
+    for (int i = 0; i < n-1; i++){
         temp_loss += clm_derivative(q, fsum[i], b, y[i]);
-        // cout << temp_loss << " -> ";
-        if (!c[i]) {
+        // cout << temp_loss << " ";
+        if (i==n-1||!c[i]) {
             if (gsign[pre_i] < 2) {
                 temp_loss -= gsign[pre_i] * lam;
             }
@@ -161,8 +156,8 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
             } else if (gsign[pre_i] == 2 || gsign[i + 1] == 2) {
                 temp_loss = calc_min_subopt(temp_loss, lam);
             }
-            // cout << temp_loss << " ";
-            // cout << pre_i <<"-"<< i << ";   ";
+            // cout << " \n-> " <<temp_loss << " ";
+            // cout << pre_i <<"-"<< i << "/"<<n<< "\n";
             subopt += abs(temp_loss);
             for (int j = pre_i; j <= i; j++){
                 gradient[j] = temp_loss;
@@ -180,7 +175,7 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
 
 
 
-void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<double>>& f, vector<int> y , int q, double lam, double *b) {
+void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vector<double>>& f,const  vector<int> y , int q, double lam, double *b, double L) {
     double loss;
     double lastloss;
     int n = y.size();
@@ -189,7 +184,7 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
     vector<double> fsum(n, 0);
     vector<double> fsumtmp(n, 0);
     vector<vector<int>> argsort(d, vector<int>(n));
-    vector<deque<bool>> argsort_c(d,deque<bool>(n));
+    vector<vector<int>> argsort_c(d,vector<int>(n));
     vector<vector<int>> argsort_inv(d, vector<int>(n));
     set_argsort(argsort, argsort_c, argsort_inv, x);
     vector<double> solver_y(n);
@@ -199,8 +194,9 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
     vector<double> sorted_fsum(n);
     vector<double> sorted_f(n);
     vector<vector<double>> gradient(d, vector<double>(n));
+
+    double l_inv = 1/(L);
     double flsa_lam = l_inv * lam;
-    cout << "flsa lam: " << flsa_lam << "\n";
 
     double subopt;
 
@@ -216,7 +212,7 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
             // }
             // cout << "\n";
 
-            solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k);
+            solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k, l_inv);
 
             for (int i = 0; i < n; i++){
                 fsumtmp[i] = fsum[i] - f[j][i];
@@ -243,30 +239,30 @@ void solve_block_coordinate_descent(vector< vector<double>> x, vector< vector<do
                 sorted_fsum[i] = fsum[argsort[j][i]];
                 sorted_f[i] = f[j][argsort[j][i]];
             }
-            subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, &argsort_c[j][0], &sorted_y[0], &gradient[j][0]);
+            subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[0], &gradient[j][0]);
         }
         double loss =  calc_objective(fsum, y, b, q, f, argsort, lam);
         // cout << "subopt" << " : "<<subopt << "\n";
         if (k%pn==0){
-            cout <<"loss: " << loss <<" , subopt" << " : "<<subopt << "\n";
+            std::cout << "iter: " << k;
+            std::cout <<"  loss: " << loss <<" , subopt" << " : "<<subopt << "\n";
         }
         if (subopt < EPS) {
-            cout << "converged: " << k << "\n";
-            cout << duration << "\n";
+            std::cout << "converged: " << k << "\n";
+            std::cout << duration << "\n";
             break;
         }
         lastloss = loss;
 
     }
 
-    cout << "duration: " << duration << "\n";
+    std::cout << "duration: " << duration << "\n";
 }
 
 
 
 
-void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& f, vector<int> y , int q, double lam, double *b) {
-    double loss;
+double solve_gradient_descent(const vector< vector<double>> x, vector< vector<double>>& f, const vector<int> y , int q, double lam, double *b, const double L, const double t0) {
     double lastloss;
     int n = y.size();
     int d = x.size();
@@ -275,13 +271,16 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
     vector<double> fsum(n, 0);
     vector<double> fsumtmp(n, 0);
     vector<vector<int>> argsort(d, vector<int>(n));
-    vector<deque<bool>> argsort_c(d,deque<bool>(n));
+    vector<vector<int>> argsort_c(d,vector<int>(n));
 
     vector<vector<int>> argsort_inv(d, vector<int>(n));
     set_argsort(argsort, argsort_c, argsort_inv, x);
     vector<double> solver_y(n);
     vector<double> solver_f(n);
     double tmp_f;
+    const double steepest_linv = sqrt(t0)/L;
+    // cout << steepest_linv << "||||\n";
+    double loss;
 
     vector<int> sorted_y(n);
     vector<double> sorted_fsum(n);
@@ -312,20 +311,25 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
                 sorted_fsum[i] = fsum[argsort[j][i]];
                 sorted_f[i] = f[j][argsort[j][i]];
             }
-            subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, &argsort_c[j][0], &sorted_y[0], &gradient[j][0]);
+            subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[0], &gradient[j][0]);
         }
 
         end = chrono::system_clock::now();
         duration += chrono::duration_cast<std::chrono::microseconds>(end-start).count(); 
 
-        double loss =  calc_objective(fsum, y, b, q, f, argsort, lam);
+        
         if (k%pn==0){
-            cout << "loss: " << loss;
-            cout << " . subopt" << " : "<<subopt << "\n";
+            loss = calc_objective(fsum, y, b, q, f, argsort, lam);
+            if (loss==INFINITY){
+                return loss;
+            }
+            std::cout << "iter: " << k;
+            std::cout << "   loss: " << loss;
+            std::cout << " . subopt" << " : "<<subopt << "\n";
         }
         
         if (subopt < EPS) {
-            cout << "converged: " << k << "\n";
+            std::cout << "converged: " << k << "\n";
             break;
         }
 
@@ -353,5 +357,6 @@ void solve_gradient_descent(vector< vector<double>> x, vector< vector<double>>& 
         
     }
 
-    cout << "duration: " << duration << "\n";
+    // cout << "duration: " << duration << "\n";
+    return loss;
 }

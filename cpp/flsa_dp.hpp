@@ -1,2 +1,2 @@
 
-void tf_dp (int n, double *y, double lam, bool *c, double *beta);
+void tf_dp (int n, double *y, double lam, int *c, double *beta);
