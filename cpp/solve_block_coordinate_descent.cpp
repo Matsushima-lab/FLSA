@@ -8,10 +8,11 @@
 #include <time.h>
 #include <chrono>
 #include <stdexcept>
+#include <iomanip>
 
 using namespace std;
-const double EPS = 1e-4;
-const int ITER = 10000;
+const double EPS = 1e-8;
+const int ITER = 10001;
 const double LOG2 = 0.693147;
 const int pn = 100;
 
@@ -203,6 +204,17 @@ void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vec
     // while (1) {
 
     for (int k=0; k<ITER; k++) {
+        double loss =  calc_objective(fsum, y, b, q, f, argsort, lam);
+        // cout << "subopt" << " : "<<subopt << "\n";
+        if (k%pn==0){
+            std::cout << k <<",";
+            for (int i = 0; i < n; i++){
+                for (int j = 0; j < d; j++){
+                    std::cout <<std::setprecision(10)<< f[j][i] << ",";
+                }
+            }
+            std::cout<<"\n";
+        }
         chrono::system_clock::time_point  start, end; // 型は auto で可
         start = chrono::system_clock::now();
         for (int j = 0; j < d; j++){
@@ -241,12 +253,12 @@ void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vec
             }
             subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[0], &gradient[j][0]);
         }
-        double loss =  calc_objective(fsum, y, b, q, f, argsort, lam);
-        // cout << "subopt" << " : "<<subopt << "\n";
+
         if (k%pn==0){
-            std::cout << "iter: " << k;
-            std::cout <<"  loss: " << loss <<" , subopt" << " : "<<subopt << "\n";
+            // std::cout << "iter: " << k;
+            // std::cout <<"  loss: " << loss <<" , subopt" << " : "<<subopt << "\n";
         }
+        
         if (subopt < EPS) {
             std::cout << "converged: " << k << "\n";
             std::cout << duration << "\n";
@@ -256,7 +268,7 @@ void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vec
 
     }
 
-    std::cout << "duration: " << duration << "\n";
+    // std::cout << "duration: " << duration << "\n";
 }
 
 
@@ -291,6 +303,16 @@ double solve_gradient_descent(const vector< vector<double>> x, vector< vector<do
    
     vector<vector<double>> gradient(d, vector<double>(n));
     for (int k=0; k<ITER; k++) {
+        if (k%pn==0){
+            std::cout << k <<",";
+            for (int i = 0; i < n; i++){
+                for (int j = 0; j < d; j++){
+                    std::cout <<std::setprecision(10)<< f[j][i] << ",";
+                }
+            }
+            std::cout<<"\n";
+        }
+ 
         subopt= 0;
         // cout << "fsum: ";
 
@@ -323,9 +345,13 @@ double solve_gradient_descent(const vector< vector<double>> x, vector< vector<do
             if (loss==INFINITY){
                 return loss;
             }
-            std::cout << "iter: " << k;
-            std::cout << "   loss: " << loss;
-            std::cout << " . subopt" << " : "<<subopt << "\n";
+            // std::cout << "iter: " << k;
+            // std::cout << "   loss: " << loss;
+            // std::cout << " . subopt" << " : "<<subopt << "\n";
+
+            // std::cout << k <<",";
+            // std::cout <<loss<< "\n";
+ 
         }
         
         if (subopt < EPS) {

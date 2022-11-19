@@ -87,9 +87,9 @@ void print(std::vector<T> const &input, std::vector<int> const &index)
 
 int main(){
     double yi;
-    string dataname = "car";
-    std::string filename = "/home/iyori/work/gam/experiments/datasets/ordinal-regression/"+dataname+"/matlab/train_"+dataname+".0";
-    // std::string filename = "/home/iyori/work/gam/experiments/datasets/discretized-regression/10bins/"+dataname+"/matlab/train_"+dataname+".1";
+    string dataname = "housing";
+    // std::string filename = "/home/iyori/work/gam/experiments/datasets/ordinal-regression/"+dataname+"/matlab/train_"+dataname+".0";
+    std::string filename = "/home/iyori/work/gam/experiments/datasets/discretized-regression/5bins/"+dataname+"/matlab/train_"+dataname+".1";
     // std::string filename = "/home/iyori/work/gam/experiments/datasets/ordinal-regression/winequality-red/matlab/train_winequality-red.1";
     // std::string filename = "/home/iyori/work/gam/experiments/datasets/ordinal-regression/automobile/matlab/train_automobile.0";
     vector<vector<double>> data = csv2vector(filename);
@@ -120,7 +120,7 @@ int main(){
     int q = *max_element(y.begin(), y.end());
     double b[q];
     std::iota(b, b+q, 1);
-    std::cout << n << ", " << d << "\n";
+    // std::cout << n << ", " << d << "\n";
     double lam = 0.1;
     vector<vector<double>> f(d, vector<double>(n));
     vector<vector<double>> f1(d, vector<double>(n));
@@ -147,29 +147,31 @@ int main(){
     //     print(argsort_inv[j]);
     // }
 
-    solve_block_coordinate_descent(x, f, y, q, lam, b, 0.2);
+    // solve_block_coordinate_descent(x, f, y, q, lam, b, 0.25);
     
     // for (int j = 0; j < d; j++){
     //     print(f[j]);
     // }
-    // double min_loss = INFINITY;
-    // double loss;
-    // double minL, mint0;
+
     // cout << "_____________________________________________\n";
-    // // for (int i=-5; i<=5; i++){
-    // //     for (int j=-4; j<=5; j++){
-    //         double L = 1000; //* pow(2,i);
-    //         double t0 = 100; //* pow(4,j);
-    //         fill(f1.begin(), f1.end(), vector<double>(n));
-    //         loss =  solve_gradient_descent(x, f1, y, q, lam, b, L, t0);
-    //         cout << "L: "<< L << ", t0: "<< t0<< "  final loss:" << loss << "\n";
-    //         if (min_loss>loss){
-    //             min_loss = loss;
-    //             minL = L;
-    //             mint0 = t0;
-    //         }
-    // //     }
-    // // }
+    double min_loss = INFINITY;
+    double loss;
+    double minL, mint0;
+ 
+    // for (int i=0; i<=3; i++){
+    //     for (int j=0; j<=6; j++){
+            double L = 30;
+            double t0 = 100;
+            fill(f1.begin(), f1.end(), vector<double>(n));
+            loss =  solve_gradient_descent(x, f1, y, q, lam, b, L, t0);
+            // cout << "L: "<< L << ", t0: "<< t0<< "  final loss:" << loss << "\n";
+            if (min_loss>loss){
+                min_loss = loss;
+                minL = L;
+                mint0 = t0;
+            }
+    //     }
+    // }
     // cout << "min_L: " << minL<< " , min_t0: " << mint0<<  "  min loss: " <<min_loss <<" \n";
     // for (int j = 0; j < d; j++){
     //     print(f1[j]);
