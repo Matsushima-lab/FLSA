@@ -1,4 +1,9 @@
-void tf_dp(int n, double *y, double lam, bool *c, double *beta) {
+#include "flsa_dp.hpp"
+
+#include <iostream>
+using namespace std;
+
+void tf_dp(int n, double *y, double lam, int *c, double *beta) {
   int i;
   int k;
   int l;
@@ -39,53 +44,64 @@ void tf_dp(int n, double *y, double lam, bool *c, double *beta) {
   /*
   tm, tp:ψ_kの範囲が[tm, tp]
   */
-  tm[0] = -lam + y[0];
-  tp[0] = lam + y[0];
+  if (c[0]){
+    l = n;
+    r = n - 1;
+    afirst = 2;
+    bfirst = -y[0] - y[1];
+    alast = -afirst;
+    blast = -bfirst;
+  }
+  else{
+    tm[0] = -lam + y[0];
+    tp[0] = lam + y[0];
 
-  /*
-  論文中では使わなくなったknotをdeleteしているが,
-  ここではlとrを移動させることで対処している．
-  kが増えて行ってもknotのx座標，傾きの変化は継承されていく
-  δ_k'において採用するknotが変化していき，　それをlとrによって表現している．
-  l-r+1: num of knots
-  l,rは[0,2n]の範囲で自由に動く可能性がある.
-  */
-  l = n - 1;
-  r = n;
+    /*
+    論文中では使わなくなったknotをdeleteしているが,
+    ここではlとrを移動させることで対処している．
+    kが増えて行ってもknotのx座標，傾きの変化は継承されていく
+    δ_k'において採用するknotが変化していき，　それをlとrによって表現している．
+    l-r+1: num of knots
+    l,rは[0,2n]の範囲で自由に動く可能性がある.
+    */
+    l = n - 1;
+    r = n;
 
-  /*
-  a, b: その区間の直線の方程式は　δ'(y)= a*y+b
-  x: δのノットのx座標
-  b = -x*a
-  */
-  x[l] = tm[0];
-  x[r] = tp[0];
-  a[l] = 1;
-  b[l] = -y[0] + lam;
-  a[r] = -1;
-  b[r] = y[0] + lam;
-  /*
-  afirst：二乗誤差では1, e_kの傾きa
-  bfirst:δ_kの最初の区間の直線の切片
-  */
+    /*
+    a, b: その区間の直線の方程式は　δ'(y)= a*y+b
+    x: δのノットのx座標
+    b = -x*a
+    */
+    x[l] = tm[0];
+    x[r] = tp[0];
+    a[l] = 1;
+    b[l] = -y[0] + lam;
+    a[r] = -1;
+    b[r] = y[0] + lam;
+    /*
+    afirst：二乗誤差では1, e_kの傾きa
+    bfirst:δ_kの最初の区間の直線の切片
+    */
 
-  afirst = 1;
-  bfirst = -y[1] - lam;
-  /*
-  alast： 二乗誤差では-1, -e_kの傾き
-  blast: -δ_kの最初の区間の直線の切片
-  */
-  alast = -1;
-  blast = y[1] - lam;
+    afirst = 1;
+    bfirst = -y[1] - lam;
+    /*
+    alast： 二乗誤差では-1, -e_kの傾き
+    blast: -δ_kの最初の区間の直線の切片
+    */
+    alast = -1;
+    blast = y[1] - lam;
+  }
+
 
   /* δ_N'の計算*/
   /* 各イタレーションでδ_k'の計算*/
   /* Now iterations 2 through n-1 */
   for (k = 1; k < n - 1; k++) {
-    if(c[i]){
+    if(c[k]){
       afirst += 1;
-      alast -= y[k + 1];
-      bfirst -= 1;
+      bfirst -= y[k + 1];
+      alast -= 1;
       blast += y[k + 1];
     }
     else{
@@ -109,6 +125,7 @@ void tf_dp(int n, double *y, double lam, bool *c, double *beta) {
 
       /* Compute hi: step down from r until the
         derivative is less than lam */
+      
       ahi = alast;
       bhi = blast;
       for (hi = r; hi >= lo; hi--) {
@@ -160,13 +177,17 @@ void tf_dp(int n, double *y, double lam, bool *c, double *beta) {
   /* Compute the rest of the coefficients, by the
      back-pointers */
   for (k = n - 2; k >= 0; k--) {
-    if (beta[k + 1] > tp[k])
-      beta[k] = tp[k];
-    else if (beta[k + 1] < tm[k])
-      beta[k] = tm[k];
-    else
-      beta[k] = beta[k + 1];
-  }
+    if (c[k]){
+        beta[k] = beta[k + 1];
+    }else{
+      if (beta[k + 1] > tp[k])
+        beta[k] = tp[k];
+      else if (beta[k + 1] < tm[k])
+        beta[k] = tm[k];
+      else
+        beta[k] = beta[k + 1];
+        }
+    }
 
   /* Done! Free up memory */
   delete[] x;
