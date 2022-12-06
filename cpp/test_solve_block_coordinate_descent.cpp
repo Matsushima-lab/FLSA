@@ -87,11 +87,11 @@ void print(std::vector<T> const &input, std::vector<int> const &index)
 
 int main(){
     double yi;
-    string dataname = "housing";
-    // std::string filename = "/home/iyori/work/gam/experiments/datasets/ordinal-regression/"+dataname+"/matlab/train_"+dataname+".0";
-    std::string filename = "/home/iyori/work/gam/experiments/datasets/discretized-regression/5bins/"+dataname+"/matlab/train_"+dataname+".1";
-    // std::string filename = "/home/iyori/work/gam/experiments/datasets/ordinal-regression/winequality-red/matlab/train_winequality-red.1";
-    // std::string filename = "/home/iyori/work/gam/experiments/datasets/ordinal-regression/automobile/matlab/train_automobile.0";
+    string dataname = "wlb";
+    std::string filename = "/home/iyori/work/gam/datasets/"+dataname+"/train_"+dataname+".2";
+    // std::string filename = "/home/iyori/work/gam/experiments/datasets/ordinal-regression/"+dataname+"/matlab/train_"+dataname+".1";
+    // std::string filename = "/home/iyori/work/gam/experiments/datasets/discretized-regression/5bins/"+dataname+"/matlab/train_"+dataname+".1";
+
     vector<vector<double>> data = csv2vector(filename);
     int d = data[0].size() - 1;
     int n = data.size();
@@ -104,23 +104,12 @@ int main(){
         for (size_t j=0; j<d; j++){
             x[j].push_back(data[i][j]);
         }
-        y.push_back((int) data[i][d]);
+        y.push_back((int) data[i][d] + 1);
     }
 
-    // vector<vector<double>> x{{0,1,3,3,4}};
-// , {8,3,0,2,3,4,1,1,2,1}
-
-    // vector<vector<double>> x{{4,1,3,6,2,7,4,9,0,2},{6,8,3,8,0,4,7,1,8,9},{1,2,5,3,3,0,5,9,2,6}};
-
-    // vector<vector<double>> x{{0,1,1}};
-    // vector<int> y{1,2,5,3,1,1,3,2,2,4};
-
-    // vector<int> y{2,2,1};
-
     int q = *max_element(y.begin(), y.end());
-    double b[q];
-    std::iota(b, b+q, 1);
-    // std::cout << n << ", " << d << "\n";
+    double b[q - 1];
+    std::iota(b, b + q - 1, -(double)q/2.0+1);
     double lam = 0.1;
     vector<vector<double>> f(d, vector<double>(n));
     vector<vector<double>> f1(d, vector<double>(n));
@@ -135,47 +124,36 @@ int main(){
     // for (int j = 0; j < d; j++){
     //     print(y, argsort[j]);
     // }
-
     // for (int j = 0; j < d; j++){
     //     for (int i = 0; i < n - 1; i++){
     //         cout << argsort_c[j][i] << " ";
     //     }
     //     cout << "\n";
     // }
-
     // for (int j = 0; j < d; j++){
     //     print(argsort_inv[j]);
     // }
 
-    // solve_block_coordinate_descent(x, f, y, q, lam, b, 0.25);
-    
-    // for (int j = 0; j < d; j++){
-    //     print(f[j]);
-    // }
+    solve_block_coordinate_descent(x, f, y, q, lam, b, 0.5);
+    std::cout <<"_______________________________________________\n";
+    std::cout << "b: \n";
+    for (int l = 0; l<q-1; l++){
+        std::cout << b[l] << " ";
+    }
+    std::cout << "\n";
+ 
+    std::cout << "f: \n";
+    for (int j = 0; j<d; j++){
+        for (int i = 0; i<n; i++){
+        std::cout << f[j][i] << " ";
+        }
+        std::cout << "\n";
+    }
 
-    // cout << "_____________________________________________\n";
+    
     double min_loss = INFINITY;
     double loss;
     double minL, mint0;
  
-    // for (int i=0; i<=3; i++){
-    //     for (int j=0; j<=6; j++){
-            double L = 30;
-            double t0 = 100;
-            fill(f1.begin(), f1.end(), vector<double>(n));
-            loss =  solve_gradient_descent(x, f1, y, q, lam, b, L, t0);
-            // cout << "L: "<< L << ", t0: "<< t0<< "  final loss:" << loss << "\n";
-            if (min_loss>loss){
-                min_loss = loss;
-                minL = L;
-                mint0 = t0;
-            }
-    //     }
-    // }
-    // cout << "min_L: " << minL<< " , min_t0: " << mint0<<  "  min loss: " <<min_loss <<" \n";
-    // for (int j = 0; j < d; j++){
-    //     print(f1[j]);
-    // }
-
 
 }
