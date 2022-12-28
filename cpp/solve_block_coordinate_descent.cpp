@@ -14,11 +14,11 @@
 using namespace std;
 using namespace Eigen;
 
-const double EPS = 1e-6;
-const double PRE_FIT_EPS = 1e-4;
+const double EPS = 1e-5;
+const double PRE_FIT_EPS = 1e-1;
 const int ITER = 10000;
 const double LOG2 = 0.693147;
-const int pn = 100;
+const int pn = 500;
 const int pm = 10;
 
 double sigmoid(double x) {
@@ -196,13 +196,14 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
             temp_loss = 0;
         }
     }
+    delete[] gsign;
     return subopt;
 }
 
 
 
 
-void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vector<double>>& f,const  vector<int> y , int q, double lam, double *b, double L, const double M) {
+int solve_block_coordinate_descent(const vector< vector<double>> x, vector< vector<double>>& f,const  vector<int> y , int q, const double lam, double *b, double L, const double M) {
     int n = y.size();
     int d = x.size();
     double duration = 0;
@@ -210,7 +211,7 @@ void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vec
     vector<double> fsumtmp(n, 0);
     VectorXd db(q-1);
     vector<vector<int>> argsort(d, vector<int>(n));
-    vector<vector<int>> argsort_c(d,vector<int>(n));
+    vector<vector<int>> argsort_c(d,vector<int>(n-1));
     vector<vector<int>> argsort_inv(d, vector<int>(n));
     set_argsort(argsort, argsort_c, argsort_inv, x);
     vector<vector<int>> sorted_y(d, vector<int>(n));
@@ -231,15 +232,29 @@ void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vec
     LLT<MatrixXd> llt;
     VectorXd newton(q-1);
     double newton_eta;
-
     double loss;
-
     double bsubopt, pre_bsubopt;
-
     double l_inv = 1/(L);
     double flsa_lam = l_inv * lam;
-
     double subopt;
+    clm_b_derivative(n, q, &fsum[0], b, &y[0], M, db, hessianb);
+    subopt = 0;
+    for (int l = 0; l<q-1; l++){
+        subopt += abs(db[l]);
+    }
+    // cout <<"b subopt: "<<subopt<< ", total_subopt: ";
+    for (int j = 0; j < d; j++){
+        for (int i = 0; i < n; i++){
+            sorted_fsum[i] = fsum[argsort[j][i]];
+            sorted_f[i] = f[j][argsort[j][i]];
+        }
+        subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0]);
+    }
+
+    // cout <<subopt << "\n";
+
+    const double init_subopt = subopt;
+
     for (int k=0; k<ITER; k++) {
         chrono::system_clock::time_point  start, end; // 型は auto で可
         start = chrono::system_clock::now();
@@ -265,16 +280,15 @@ void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vec
             }
             subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0]);
         }
-        subopt/=n*d;
-        if (k%pn==0){
-            loss = calc_objective(fsum, y, b, q, f, argsort, lam);
-            std::cout << "iter: " << k << " time: " << duration;
-            std::cout <<"  loss: " << loss <<" , subopt" << " : "<<subopt <<"\n";
-        }
+        // if (k%pn==0){
+        //     loss = calc_objective(fsum, y, b, q, f, argsort, lam);
+        //     std::cout << "iter: " << k << " time: " << duration;
+        //     std::cout <<"  loss: " << loss <<" , subopt" << " : "<<subopt/init_subopt <<"\n";
+        // }
         
-        if (subopt < PRE_FIT_EPS) {
-            std::cout << "converged: " << k << "\n";
-            std::cout << duration << "\n";
+        if (subopt/init_subopt < PRE_FIT_EPS) {
+            // std::cout << "pre-converged: " << k << "\n";
+            // std::cout << duration << "\n";
             break;
         }
     }
@@ -286,9 +300,9 @@ void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vec
         newton = llt.solve(db);
         
         for (int l = 0; l<q-1; l++){
-        // for (int l = 1; l<q-2; l++){
             b[l] -= newton[l];
         }
+        if (b[0] < -M || b[q-2] > M) return 1;
         for (int j = 0; j < d; j++){
             solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k, l_inv);
             for (int i = 0; i < n; i++){
@@ -304,40 +318,42 @@ void solve_block_coordinate_descent(const vector< vector<double>> x, vector< vec
 
         end = chrono::system_clock::now();
         duration += chrono::duration_cast<std::chrono::milliseconds>(end-start).count(); 
-        subopt = 0;
-        bsubopt = 0;
-        for (int l = 0; l<q-1; l++){
-            bsubopt += abs(db[l]);
-        }
-        bsubopt/=q-1;
-        for (int j = 0; j < d; j++){
-            for (int i = 0; i < n; i++){
-                sorted_fsum[i] = fsum[argsort[j][i]];
-                sorted_f[i] = f[j][argsort[j][i]];
-            }
-            subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0]);
-        }
-        subopt/=n*d;
-
-
-        if (k%pn==0){
-            loss = calc_objective(fsum, y, b, q, f, argsort, lam);
-            std::cout << "iter: " << k << " time: " << duration;
-            std::cout <<"  loss: " << loss <<" , subopt" << " : "<<subopt << " , bsubopt" << " : "<<bsubopt << "\n";
-            std::cout << "b: [";
+        if (k%pm==0){
+            bsubopt = 0;
+            subopt = 0;
             for (int l = 0; l<q-1; l++){
-                std::cout << b[l] << " ";
+                bsubopt += abs(db[l]);
             }
-            std::cout << "]\n";
+            for (int j = 0; j < d; j++){
+                for (int i = 0; i < n; i++){
+                    sorted_fsum[i] = fsum[argsort[j][i]];
+                    sorted_f[i] = f[j][argsort[j][i]];
+                }
+                subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0]);
+            }
+            if ((subopt + bsubopt)/init_subopt < EPS) {
+                // std::cout << "converged: " << k << "\n";
+                // std::cout << duration << "\n";
+                break;
+            }
         }
+
+
+        // if (k%pn==0){
+        //     loss = calc_objective(fsum, y, b, q, f, argsort, lam);
+        //     std::cout << "iter: " << k << " time: " << duration;
+        //     std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/init_subopt << " , bsubopt" << " : "<<bsubopt/init_subopt << "\n";
+        //     std::cout << "b: [";
+        //     for (int l = 0; l<q-1; l++){
+        //         std::cout << b[l] << " ";
+        //     }
+        //     std::cout << "]\n";
+        // }
         
-        if (subopt < EPS && bsubopt < EPS) {
-            std::cout << "converged: " << k << "\n";
-            std::cout << duration << "\n";
-            break;
-        }
+        
         
     }
+    return 0;
 }
 
 
