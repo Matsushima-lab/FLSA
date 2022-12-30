@@ -1,6 +1,6 @@
 #include "flsa_dp.hpp"
 #include "predict.hpp"
-#include "solve_block_coordinate_descent.hpp"
+#include "train_tvaclm.hpp"
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -12,7 +12,7 @@
 
 using namespace std;
 
-void calc_metrix(const vector<vector<double>>& sortedf, const vector<vector<double>>& sortedx, const vector<vector<double>>& valx, const vector<int>& valy, double& mae, double& acc, double& prob, const int q, const double *b, const double M){
+void tvaclm_calc_metrix(const vector<vector<double>>& sortedf, const vector<vector<double>>& sortedx, const vector<vector<double>>& valx, const vector<int>& valy, double& mae, double& acc, double& prob, const int q, const double *b, const double M){
     mae = 0;
     acc = 0;
     prob = 0;
@@ -39,6 +39,46 @@ void calc_metrix(const vector<vector<double>>& sortedf, const vector<vector<doub
                 }
             }
         }
+        for (int l = 1; l<=q; l++){
+            if (l==1) qprob = sigmoid(b[0] - f_train) - sigmoid(- f_train);
+            else if (l<q) qprob = sigmoid(b[l - 1] - f_train) - sigmoid(b[l - 2]- f_train);
+            else qprob = sigmoid(M - f_train) - sigmoid(b[q - 2]- f_train);
+            if (l == valy[k]) prob += qprob/(sigmoid(M - f_train) - sigmoid(-M- f_train));
+            if (qprobmax < qprob){
+                qprobmax = qprob;
+                pred = l;
+            }
+        }
+        if (pred==valy[k]) acc+=1;
+        mae+=abs(pred-valy[k]);
+    }
+
+    prob/=valn;
+    acc/=valn;
+    mae/=valn;
+
+    // std::cout << "PROB: " << prob <<"| ";
+    // std::cout << "ACC: " << acc <<"| ";
+    // std::cout << "MAE: " << mae <<"\n";
+}
+
+void clm_calc_metrix(const vector<double> w, const vector<vector<double>> valx, const vector<int> valy, double& mae, double& acc, double& prob, const int q, const double *b, const double M){
+    mae = 0;
+    acc = 0;
+    prob = 0;
+    
+    double qprobmax, f_train, pred, qprob;
+    const int d = valx.size();
+    const int valn = valy.size();
+    for (int k = 0; k < valn; k++){
+        qprobmax = 0;
+        f_train = 0;
+        pred = 0;
+
+        for (int j = 0; j<d; j++){
+            f_train+=w[j] * valx[j][k];
+        }
+        f_train += w[d];
         for (int l = 1; l<=q; l++){
             if (l==1) qprob = sigmoid(b[0] - f_train) - sigmoid(- f_train);
             else if (l<q) qprob = sigmoid(b[l - 1] - f_train) - sigmoid(b[l - 2]- f_train);

@@ -1,7 +1,7 @@
 #include "flsa_dp.hpp"
 #include "utils.hpp"
 #include "predict.hpp"
-#include "solve_block_coordinate_descent.hpp"
+#include "train_tvaclm.hpp"
 #include <iostream>
 #include <vector>
 #include <deque>
@@ -19,21 +19,23 @@ int main(){
     const vector<double> lam_list = {0.0625, 0.125,0.25,0.5,1,2,4,8,16,32,64,128};
     const int lamn = lam_list.size();
  
-    string datalist[] = { "winequality-white","wlb", "winequality"};
-    // string datalist[] = {"ERA","ESL","LEV","SWD","automobile","balance-scale","bondrate","car","contact-lenses","eucalyptus","newthyroid","pasture","squash-stored","squash-unstored","tae","toy","dwinequality-red"};
-    // string datalist[] = {"ERA","ESL","LEV","SWD","automobile","balance-scale","bondrate","car","contact-lenses","eucalyptus","newthyroid","pasture","squash-stored","squash-unstored","tae","toy","dwinequality-red"};
-    
+    // string datalist[] = { "wlb", "winequality-white","winequality"};
+    // string datalist[] = {"ESL","LEV","SWD","automobile","balance-scale","bondrate","car","contact-lenses","eucalyptus","newthyroid","pasture","squash-stored","squash-unstored","tae","toy","ERA","winequality-red"};
+    // string datalist[] = {"abalone", "bank1-5","bank2-5","calhousing-5","census1-5","census2-5","computer1-5","computer2-5","housing","machine","pyrim","stock"};
+    // string datalist[] = {"bank1-10","bank2-10","calhousing-10","census1-10","census2-10","computer1-10","computer2-10","housing10","machine10","pyrim10","stock10"};
+    string datalist[] = {"abalone"};
+    string datadir_name = "discretized-regression/5bins";
     for (auto dataname: datalist){
         double eta = 1.;
-        std::ofstream myFile("./../tvaclm_exp/bigdata/"+dataname+".csv", ios::app);
+        std::ofstream myFile("./../tvaclm_exp/" + datadir_name + "/"+dataname+".csv", ios::app);
         myFile << "num, lambda, trainprob,trainacc,trainmae,prob,acc,mae" << endl;
         for (int datanum = 0; datanum<=30; datanum++){
             auto datanum_str = std::to_string(datanum);
-            // std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/ordinal-regression/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
-            // std::string test_filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/ordinal-regression/"+dataname+"/matlab/test_"+ dataname+"." + datanum_str;
+            std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/" + datadir_name + "/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
+            std::string test_filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/" + datadir_name + "/"+dataname+"/matlab/test_"+ dataname+"." + datanum_str;
 
-            std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/bigdata/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
-            std::string test_filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/bigdata/"+dataname+"/matlab/test_"+ dataname+"." + datanum_str;
+            // std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/bigdata/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
+            // std::string test_filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/bigdata/"+dataname+"/matlab/test_"+ dataname+"." + datanum_str;
 
 
             std::cout << "dataname: " << dataname << " |  data number: " << datanum_str << "\n";
@@ -124,11 +126,11 @@ int main(){
                     }
                     vector<vector<double>> fcv(d, vector<double>(train_y.size(),0));
 
-                    int invalid = solve_block_coordinate_descent(train_x, fcv, train_y, q, lam, b, 0.3, M);
+                    int invalid = train_tvaclm(train_x, fcv, train_y, q, lam, b, 0.3, M);
 
                     if (invalid) {
                         l -= 1;
-                        eta += 0.2;
+                        eta *= 2;
                         M = pi * q * eta;
                         std::cout << "init value of newton is not valid. lambda: " << lam << ", k: " << k << ", eta" << eta <<"\n";
                         continue;
@@ -143,9 +145,9 @@ int main(){
                         }
                     }
                     // double prob, acc, mae;
-                    // calc_metrix(sortedfcv,sortedxcv, train_x, train_y, mae, acc, prob, q, b,  M);
+                    // tvaclm_calc_metrix(sortedfcv,sortedxcv, train_x, train_y, mae, acc, prob, q, b,  M);
                     double valprob, valacc, valmae;
-                    calc_metrix(sortedfcv,sortedxcv, val_x, val_y, valmae, valacc, valprob, q, b,  M);
+                    tvaclm_calc_metrix(sortedfcv,sortedxcv, val_x, val_y, valmae, valacc, valprob, q, b,  M);
                     maesum[l]+=valmae;
 
                     std::cout << ">" << flush;
@@ -153,7 +155,7 @@ int main(){
             }
             std::cout << endl;
             double min_mae_ave = 1e10;
-            double best_lam = -1;
+            double best_lam = 1;
             for (int l=0; l < lamn; l++){
                 const double lam = lam_list[l];
                 double mae_ave = maesum[l]/CVNUM;
@@ -172,7 +174,7 @@ int main(){
             for (int i=0; i < q-1; i++){
                 b[i] =  2 * pi * i - pi * (q - 2);
             }
-            solve_block_coordinate_descent(x, f, y, q, best_lam, b, 0.3, M);
+            train_tvaclm(x, f, y, q, best_lam, b, 0.3, M);
 
             std::cout << "b: ";
             for (int l = 0; l<q-1; l++){
@@ -188,8 +190,8 @@ int main(){
             }
             double trainprob, trainacc, trainmae, testprob, testacc, testmae;
 
-            calc_metrix(sortedf,sortedx, x, y, trainmae, trainacc, trainprob, q, b,  M);
-            calc_metrix(sortedf,sortedx, test_x, test_y, testmae, testacc, testprob, q, b,  M);
+            tvaclm_calc_metrix(sortedf,sortedx, x, y, trainmae, trainacc, trainprob, q, b,  M);
+            tvaclm_calc_metrix(sortedf,sortedx, test_x, test_y, testmae, testacc, testprob, q, b,  M);
             
             // Send the column name to the stream
             

@@ -1,5 +1,6 @@
 #include "flsa_dp.hpp"
-#include "solve_block_coordinate_descent.hpp"
+#include "train_tvaclm.hpp"
+#include "clm.hpp"
 #include <iostream>
 #include <vector>
 #include <deque>
@@ -14,67 +15,12 @@
 using namespace std;
 using namespace Eigen;
 
-const double EPS = 1e-5;
+const double EPS = 1e-8;
 const double PRE_FIT_EPS = 1e-1;
-const int ITER = 10000;
+const int ITER = 1000000;
 const double LOG2 = 0.693147;
-const int pn = 500;
+const int pn = 10000;
 const int pm = 10;
-
-double sigmoid(double x) {
-    return 1 / (exp(-x) + 1);
-}
-
-double clm_w_derivative(int q, double x, double *b, int y) {
-    if (y == 1){
-        return 1 - sigmoid(b[0] - x);
-    }
-    if (y == q){
-        return - sigmoid(b[q - 2] - x);
-    }
-    return 1 - sigmoid(b[y - 2] - x) - sigmoid(b[y - 1] - x);
-}
-
-void clm_b_derivative(int n, int q, const double *f, const double *b, const int *y, const double M, VectorXd& db, MatrixXd& hessianb) {
-    double sigmoid_1, sigmoid_2, b_dif_exp, inv_b_dif_exp, gamma;
-    int yi;
-    db = VectorXd::Zero(q-1);
-    hessianb = MatrixXd::Zero(q-1, q-1);
-    
-    for (int i=0; i < n; i++){
-        yi = y[i];
-        if (yi == q) {
-            sigmoid_2 = sigmoid(b[q - 2] - f[i]);
-            b_dif_exp = exp(M - b[q - 2]);
-            inv_b_dif_exp = 1 / b_dif_exp;
-            gamma = 1 / (inv_b_dif_exp + b_dif_exp - 2);
-            db(q - 2) -= 1 - sigmoid_2 + 1 / (inv_b_dif_exp - 1);
-            hessianb(q-2,q-2) += sigmoid_2 * (1 - sigmoid_2) + gamma;
-        }
-        else if (yi == 1) {
-            sigmoid_1 = sigmoid(b[0] - f[i]);
-            b_dif_exp = exp(b[0] + M);
-            inv_b_dif_exp = 1 / b_dif_exp;
-            gamma = 1 / (inv_b_dif_exp + b_dif_exp - 2);
-            db(0) -= 1 - sigmoid_1 + 1 / (b_dif_exp - 1);
-            hessianb(0, 0) += sigmoid_1 * (1 - sigmoid_1) + gamma;
-        }
-        else {
-            sigmoid_1 = sigmoid(b[yi - 1] - f[i]);
-            sigmoid_2 = sigmoid(b[yi - 2] - f[i]);
-            b_dif_exp = exp(b[yi - 1] - b[yi - 2]);
-            inv_b_dif_exp = 1 / b_dif_exp;
-            gamma = 1 / (inv_b_dif_exp + b_dif_exp - 2);
-            db(yi - 1) -= 1 - sigmoid_1 + 1 / (b_dif_exp - 1);
-            db(yi - 2) -= 1 - sigmoid_2 + 1 / (inv_b_dif_exp - 1);
-            hessianb(yi - 2, yi - 1) -= gamma;
-            hessianb(yi - 1, yi - 2) -= gamma;
-            hessianb(yi - 1, yi - 1) += sigmoid_1 * (1 - sigmoid_1) + gamma;
-            hessianb(yi - 2, yi - 2) += sigmoid_2 * (1 - sigmoid_2) + gamma;
-        }
-    }
-    return;
-}
 
 
 
@@ -86,13 +32,6 @@ void solve_square(const int n, const int q, double *fsum, double* f, double *b, 
         solver_y[i] = f[i] - l_inv * grad;
     }
     return;
-}
-
-double log1pexpz(double z){
-    if (z < 0)
-        return z + log1p(exp(-z));
-    else 
-        return log1p(exp(z));
 }
 
 double calc_objective(vector<double> fsum, vector<int> y, double *b, int q, vector<vector<double>> f, vector<vector<int>> argsort, double lam){
@@ -203,7 +142,7 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
 
 
 
-int solve_block_coordinate_descent(const vector< vector<double>> x, vector< vector<double>>& f,const  vector<int> y , int q, const double lam, double *b, double L, const double M) {
+int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,const  vector<int> y , int q, const double lam, double *b, double L, const double M) {
     int n = y.size();
     int d = x.size();
     double duration = 0;
@@ -299,9 +238,7 @@ int solve_block_coordinate_descent(const vector< vector<double>> x, vector< vect
         llt.compute(hessianb);
         newton = llt.solve(db);
         
-        for (int l = 0; l<q-1; l++){
-            b[l] -= newton[l];
-        }
+        for (int l = 0; l<q-1; l++) b[l] -= newton[l];
         if (b[0] < -M || b[q-2] > M) return 1;
         for (int j = 0; j < d; j++){
             solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k, l_inv);
@@ -339,19 +276,16 @@ int solve_block_coordinate_descent(const vector< vector<double>> x, vector< vect
         }
 
 
-        // if (k%pn==0){
-        //     loss = calc_objective(fsum, y, b, q, f, argsort, lam);
-        //     std::cout << "iter: " << k << " time: " << duration;
-        //     std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/init_subopt << " , bsubopt" << " : "<<bsubopt/init_subopt << "\n";
-        //     std::cout << "b: [";
-        //     for (int l = 0; l<q-1; l++){
-        //         std::cout << b[l] << " ";
-        //     }
-        //     std::cout << "]\n";
-        // }
-        
-        
-        
+        if (k%pn==0){
+            loss = calc_objective(fsum, y, b, q, f, argsort, lam);
+            std::cout << "iter: " << k << " time: " << duration;
+            std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/init_subopt << " , bsubopt" << " : "<<bsubopt/init_subopt << "\n";
+            std::cout << "b: [";
+            for (int l = 0; l<q-1; l++){
+                std::cout << b[l] << " ";
+            }
+            std::cout << "]\n";
+        }
     }
     return 0;
 }
@@ -438,8 +372,12 @@ double solve_gradient_descent(const vector< vector<double>> x, vector< vector<do
     return loss;
 }
 
+
+
+
+
 // PYBIND11_PLUGIN(flsaclm) {
 //     py::module m("flsaclm", "flsaclm made by pybind11");
-//     m.def("solve_block_coordinate_descent", &solve_block_coordinate_descent);
+//     m.def("train_tvaclm", &train_tvaclm);
 //     return m.ptr();
 // }
