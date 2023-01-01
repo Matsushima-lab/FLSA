@@ -14,21 +14,22 @@
 using namespace std;
 
 int main(){
-    const double pi = 1;
+    double pi = 1;
     const int CVNUM = 5;
     const vector<double> lam_list = {0.0625, 0.125,0.25,0.5,1,2,4,8,16,32,64,128};
     const int lamn = lam_list.size();
  
-    // string datalist[] = { "wlb", "winequality-white","winequality"};
+    string datalist[] = { "wlb", "winequality-white","winequality"};
     // string datalist[] = {"ESL","LEV","SWD","automobile","balance-scale","bondrate","car","contact-lenses","eucalyptus","newthyroid","pasture","squash-stored","squash-unstored","tae","toy","ERA","winequality-red"};
     // string datalist[] = {"abalone", "bank1-5","bank2-5","calhousing-5","census1-5","census2-5","computer1-5","computer2-5","housing","machine","pyrim","stock"};
-    // string datalist[] = {"bank1-10","bank2-10","calhousing-10","census1-10","census2-10","computer1-10","computer2-10","housing10","machine10","pyrim10","stock10"};
-    string datalist[] = {"abalone"};
-    string datadir_name = "discretized-regression/5bins";
+    // string datalist[] = {"abalone10", "bank1-10","bank2-10","calhousing-10","census1-10","census2-10","computer1-10","computer2-10","housing10","machine10","pyrim10","stock10"};
+    // string datalist[] = {"balance-scale"};
+    string datadir_name = "bigdata";
+    // string datadir_name = "discretized-regression/5bins";
     for (auto dataname: datalist){
         double eta = 1.;
-        std::ofstream myFile("./../tvaclm_exp/" + datadir_name + "/"+dataname+".csv", ios::app);
-        myFile << "num, lambda, trainprob,trainacc,trainmae,prob,acc,mae" << endl;
+        std::ofstream myFile("./../tvaclm_exp2/" + datadir_name + "/"+dataname+".csv", ios::app);
+        myFile << "num,lambda,trainprob,trainacc,trainmae,prob,acc,mae" << endl;
         for (int datanum = 0; datanum<=30; datanum++){
             auto datanum_str = std::to_string(datanum);
             std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/" + datadir_name + "/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
@@ -130,9 +131,10 @@ int main(){
 
                     if (invalid) {
                         l -= 1;
-                        eta *= 2;
+                        eta *= 4;
+                        pi *= 0.5;
                         M = pi * q * eta;
-                        std::cout << "init value of newton is not valid. lambda: " << lam << ", k: " << k << ", eta" << eta <<"\n";
+                        std::cout << "init value of newton is not valid. lambda: " << lam << ", k: " << k << ", eta: " << eta << ", pi: "<< pi <<endl;
                         continue;
                     }
                     vector<vector<double>> sortedfcv(d, vector<double>(train_n));
@@ -174,8 +176,11 @@ int main(){
             for (int i=0; i < q-1; i++){
                 b[i] =  2 * pi * i - pi * (q - 2);
             }
-            train_tvaclm(x, f, y, q, best_lam, b, 0.3, M);
-
+            int invalid = train_tvaclm(x, f, y, q, best_lam, b, 0.3, M);
+            if (invalid) {
+                std::cout << "++++++++++++++++++++++++++++++++++++\n    invalid init value\n+++++++++++++++++++++++++++++++++++++\n";
+                myFile <<datanum<<","<< best_lam << "," << "train error!!!!"<< endl;
+            }
             std::cout << "b: ";
             for (int l = 0; l<q-1; l++){
                 std::cout << b[l] << " ";

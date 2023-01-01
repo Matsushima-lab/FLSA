@@ -16,21 +16,20 @@ using namespace std;
 
 int main(){
     const double pi = 1;
- 
+    double eta = 10;
     // string datalist[] = { "wlb", "winequality-white","winequality"};
     // string datalist[] = {"ESL","LEV","SWD","automobile","balance-scale","bondrate","car","contact-lenses","eucalyptus","newthyroid","pasture","squash-stored","squash-unstored","tae","toy","ERA","winequality-red"};
     // string datalist[] = {"abalone", "bank1-5","bank2-5","calhousing-5","census1-5","census2-5","computer1-5","computer2-5","housing","machine","pyrim","stock"};
     // string datalist[] = {"bank1-10","bank2-10","calhousing-10","census1-10","census2-10","computer1-10","computer2-10","housing10","machine10","pyrim10","stock10"};
-    string datalist[] = {"machine"};
-    string datadir_name = "discretized-regression/5bins";
+    string datalist[] = {"balance-scale"};
+    string datadir_name = "ordinal-regression";
     for (auto dataname: datalist){
-        double eta = 1;
         std::ofstream myFile("./../tvaclm_exp/check_f/"+dataname+".csv");
-        int datanum = 1;
+        int datanum = 10;
         auto datanum_str = std::to_string(datanum);
         std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/" + datadir_name + "/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
         std::string test_filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/" + datadir_name + "/"+dataname+"/matlab/test_"+ dataname+"." + datanum_str;
-        double best_lam = 0.5;
+        double best_lam = 1;
 
         // std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/bigdata/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
         // std::string test_filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/bigdata/"+dataname+"/matlab/test_"+ dataname+"." + datanum_str;
@@ -48,14 +47,13 @@ int main(){
             continue;
         }
         int yd = train_data[0].size() - 1;
-
-
-        int d = 1;
+        int d =  yd;
+        int ds = 0;
         vector<vector<double>> x(d,vector<double>{});
         vector<int> y{};
         for (int i=0; i<n; i++){
-            for (size_t j=0; j<d; j++){
-                x[j].push_back(train_data[i][j]);
+            for (int j=ds; j<ds+d; j++){
+                x[j-ds].push_back(train_data[i][j]);
             }
             y.push_back((int) train_data[i][yd]);
         }
@@ -66,16 +64,25 @@ int main(){
         vector<vector<double>> test_x(d,vector<double>{});
         vector<int> test_y{};
         for (int i=0; i<test_n; i++){
-            for (size_t j=0; j<d; j++){
-                test_x[j].push_back(test_data[i][j]);
+            for (int j=ds; j<ds+d; j++){
+                test_x[j-ds].push_back(test_data[i][j]);
             }
             test_y.push_back((int) test_data[i][yd]);
         }
+
         int q = *max_element(y.begin(), y.end());
 
-        double M = pi * q * eta;
+        double M = q * eta * pi;
 
         std::cout << "test_n: " << test_n << ", train_n: " << n << ", q: " << q <<"\n";
+
+        std::cout << "x max: [";
+        for (int j=0; j<d; j++) std::cout << *std::max_element(x[j].begin(), x[j].end()) << ' ';
+        std::cout << "]" <<endl;
+
+        std::cout << "x min: [";
+        for (int j=0; j<d; j++) std::cout << *std::min_element(x[j].begin(), x[j].end()) << ' ';
+        std::cout << "]" <<endl;
 
         // CLM
         std::cout <<"_______________________________________________\n";

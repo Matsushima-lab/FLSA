@@ -1,3 +1,9 @@
 [submodule "cpp/eigen"]
 	path = cpp/eigen
 	url = https://gitlab.com/libeigen/eigen.git
+[submodule "cpp/pybind"]
+	path = cpp/pybind
+	url = https://github.com/pybind/pybind11.git
+[submodule "cpp/pybind11"]
+	path = cpp/pybind11
+	url = https://github.com/pybind/pybind11.git

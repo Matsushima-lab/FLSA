@@ -15,11 +15,11 @@
 using namespace std;
 using namespace Eigen;
 
-const double EPS = 1e-8;
+const double EPS = 1e-10;
 const double PRE_FIT_EPS = 1e-1;
 const int ITER = 1000000;
 const double LOG2 = 0.693147;
-const int pn = 10000;
+const int pn = 1000;
 const int pm = 10;
 
 
@@ -213,6 +213,7 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
         duration += chrono::duration_cast<std::chrono::milliseconds>(end-start).count(); 
         subopt = 0;
         for (int j = 0; j < d; j++){
+        // for (int j = d-1; j >= 0; j--){
             for (int i = 0; i < n; i++){
                 sorted_fsum[i] = fsum[argsort[j][i]];
                 sorted_f[i] = f[j][argsort[j][i]];
@@ -239,8 +240,8 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
         newton = llt.solve(db);
         
         for (int l = 0; l<q-1; l++) b[l] -= newton[l];
-        if (b[0] < -M || b[q-2] > M) return 1;
         for (int j = 0; j < d; j++){
+        // for (int j = d-1; j >= 0; j--){
             solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k, l_inv);
             for (int i = 0; i < n; i++){
                 fsumtmp[i] = fsum[i] - f[j][i];
@@ -256,6 +257,9 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
         end = chrono::system_clock::now();
         duration += chrono::duration_cast<std::chrono::milliseconds>(end-start).count(); 
         if (k%pm==0){
+
+            if (b[0] < -M || b[q-2] > M) return 1;
+            for (int l = 0; l<q-2; l++) if (b[l+1] - b[l] < 0) return 1;
             bsubopt = 0;
             subopt = 0;
             for (int l = 0; l<q-1; l++){
@@ -268,24 +272,36 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
                 }
                 subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0]);
             }
+
             if ((subopt + bsubopt)/init_subopt < EPS) {
                 // std::cout << "converged: " << k << "\n";
                 // std::cout << duration << "\n";
+                // loss = calc_objective(fsum, y, b, q, f, argsort, lam);
+                // std::cout << "iter: " << k << " loss: " << loss << endl;
+                // std::cout << "f max: [";
+                // for (int j=0; j<d; j++) std::cout << *std::max_element(f[j].begin(), f[j].end()) << ' ';
+                // std::cout << "]" <<endl;
+
+                // std::cout << "f min: [";
+                // for (int j=0; j<d; j++) std::cout << *std::min_element(f[j].begin(), f[j].end()) << ' ';
+                // std::cout << "]" <<endl;
+
                 break;
             }
         }
 
 
-        if (k%pn==0){
-            loss = calc_objective(fsum, y, b, q, f, argsort, lam);
-            std::cout << "iter: " << k << " time: " << duration;
-            std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/init_subopt << " , bsubopt" << " : "<<bsubopt/init_subopt << "\n";
-            std::cout << "b: [";
-            for (int l = 0; l<q-1; l++){
-                std::cout << b[l] << " ";
-            }
-            std::cout << "]\n";
-        }
+        // if (k%pn==0){
+        //     loss = calc_objective(fsum, y, b, q, f, argsort, lam);
+        //     std::cout << "iter: " << k << " time: " << duration;
+        //     std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/init_subopt << " , bsubopt" << " : "<<bsubopt/init_subopt << "\n";
+        //     std::cout << "b: [";
+        //     for (int l = 0; l<q-1; l++){
+        //         std::cout << b[l] << " ";
+        //     }
+        //     std::cout << "]\n";
+                    
+        // }
     }
     return 0;
 }
@@ -293,7 +309,7 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
 
 
 
-double solve_gradient_descent(const vector< vector<double>> x, vector< vector<double>>& f, const vector<int> y , int q, double lam, double *b, const double L, const double t0) {
+double solve_gradient_descent(const vector< vector<double>> x, vector< vector<double>>& f, const vector<int> y , int q, double lam, double *b, const double L, const double t0, const double M) {
     double lastloss;
     int n = y.size();
     int d = x.size();
@@ -303,7 +319,10 @@ double solve_gradient_descent(const vector< vector<double>> x, vector< vector<do
     vector<double> fsumtmp(n, 0);
     vector<vector<int>> argsort(d, vector<int>(n));
     vector<vector<int>> argsort_c(d,vector<int>(n));
-
+    MatrixXd hessianb(q-1,q-1);
+    LLT<MatrixXd> llt;
+    VectorXd newton(q-1);
+    VectorXd db(q-1);
     vector<vector<int>> argsort_inv(d, vector<int>(n));
     set_argsort(argsort, argsort_c, argsort_inv, x);
     vector<double> solver_y(n);
@@ -322,6 +341,12 @@ double solve_gradient_descent(const vector< vector<double>> x, vector< vector<do
    
     vector<vector<double>> gradient(d, vector<double>(n));
     for (int k=0; k<ITER; k++) {
+        clm_b_derivative(n, q, &fsum[0], b, &y[0], M, db, hessianb);
+        llt.compute(hessianb);
+        newton = llt.solve(db);
+        
+        for (int l = 0; l<q-1; l++) b[l] -= newton[l];
+        if (b[0] < -M || b[q-2] > M) return 1;
         subopt= 0;
 
         chrono::system_clock::time_point  start, end; // 型は auto で可
@@ -365,10 +390,7 @@ double solve_gradient_descent(const vector< vector<double>> x, vector< vector<do
         }
         // cout << "loss: " << loss;
         // cout << " . subopt" << " : "<<subopt << "\n";
-        
     }
-
-    // cout << "duration: " << duration << "\n";
     return loss;
 }
 

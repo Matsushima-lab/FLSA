@@ -16,10 +16,10 @@ using namespace Eigen;
 
 const double EPS = 1e-8;
 const double PRE_FIT_EPS = 1e-1;
-const int ITER = 10;
+const int ITER = 10000;
 const double LOG2 = 0.693147;
-const int pn = 1;
-const int pm = 10;
+const int pn = 1000;
+const int pm = 100;
 
 double sigmoid(const double x) {
     return 1 / (exp(-x) + 1);
@@ -125,7 +125,7 @@ int trainClm(const vector< vector<double>> x, const vector<int> y, const int q, 
     int d = x.size();
     int n = y.size();
     vector<double> fsum(n);
-    double l_inv = 1/(L);
+    double l_inv = 1/(L * n);
     double loss;
     MatrixXd hessianb(q-1,q-1);
     LLT<MatrixXd> llt;
@@ -137,16 +137,30 @@ int trainClm(const vector< vector<double>> x, const vector<int> y, const int q, 
     vector<double> sorted_solver_y(n);
     double duration = 0;
     double subopt;
+    double init_subopt;
     vector<double> gradient;
+    for (int k=0; k<10; k++) {
+        for (int i = 0; i < n; i++){
+            fsum[i] = 0;
+            for (int j = 0; j < d; j++) fsum[i] += w[j] * x[j][i];
+            fsum[i] += w[d];
+        }
+        gradient = calc_clm_suboptibality(x,y,q,b, fsum);
+        for (int j = 0; j <= d; j++) w[j] -= l_inv * gradient[j];
+
+    }
     for (int k=0; k<ITER; k++) {
         subopt= 0;
         chrono::system_clock::time_point  start, end; // 型は auto で可
         start = chrono::system_clock::now();
-        // clm_b_derivative(n, q, &fsum[0], b, &y[0], M, db, hessianb);
-        // llt.compute(hessianb);
-        // newton = llt.solve(db);
-        // for (int l = 0; l<q-1; l++) b[l] -= newton[l];
-        // if (b[0] < -M || b[q-2] > M) return 1;
+        clm_b_derivative(n, q, &fsum[0], b, &y[0], M, db, hessianb);
+        llt.compute(hessianb);
+        newton = llt.solve(db);
+        for (int l = 0; l<q-1; l++) b[l] -= newton[l];
+        if (abs(b[0]) > M) {
+            std::cout << "invalid newton initial value" <<endl;
+            return 1;
+        }
         for (int i = 0; i < n; i++){
             fsum[i] = 0;
             for (int j = 0; j < d; j++) fsum[i] += w[j] * x[j][i];
@@ -155,20 +169,32 @@ int trainClm(const vector< vector<double>> x, const vector<int> y, const int q, 
         gradient = calc_clm_suboptibality(x,y,q,b, fsum);
         subopt = 0;
         for (int i = 0; i < d + 1; i++) subopt += abs(gradient[i]);
+        for (int i = 0; i < q-1; i++) subopt += abs(db[i]);
+        if (k==0) init_subopt = subopt;
         end = chrono::system_clock::now();
         duration += chrono::duration_cast<std::chrono::microseconds>(end-start).count(); 
         if (k%pn==0){
+            if (b[0] < -M || b[q-2] > M) return 1;
+            for (int l = 0; l<q-2; l++) if (b[l+1] - b[l] < 0) return 1;
             loss = calc_clm_objective(fsum, y, b, q);
             if (loss==INFINITY) return loss;
             cout << "iter: " << k;
             cout << " loss: " << loss;
-            cout << " . subopt" << " : "<<subopt << "\n";
-            cout << "gradient: ";
-            for (int j=0; j<=d; j++) cout << gradient[j] << " ";
+            cout << " subopt: "<<subopt << "\n";
+            cout << "b: ";
+            for (int j=0; j<q-1; j++) cout << b[j] << " ";
             cout << endl;
+            cout << "w: ";
+            for (int j=0; j<=d; j++) cout << w[j] << " ";
+            cout <<endl;
+            
         }
-        if (subopt < EPS) {
+        if (subopt/init_subopt < EPS) {
             std::cout << "converged: " << k << "\n";
+
+            cout << "w: ";
+            for (int j=0; j<=d; j++) cout << w[j] << " ";
+            cout <<endl;
             break;
         }
         for (int j = 0; j <= d; j++) w[j] -= l_inv * gradient[j];

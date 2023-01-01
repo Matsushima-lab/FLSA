@@ -40,7 +40,7 @@ void tvaclm_calc_metrix(const vector<vector<double>>& sortedf, const vector<vect
             }
         }
         for (int l = 1; l<=q; l++){
-            if (l==1) qprob = sigmoid(b[0] - f_train) - sigmoid(- f_train);
+            if (l==1) qprob = sigmoid(b[0] - f_train) - sigmoid(- M - f_train);
             else if (l<q) qprob = sigmoid(b[l - 1] - f_train) - sigmoid(b[l - 2]- f_train);
             else qprob = sigmoid(M - f_train) - sigmoid(b[q - 2]- f_train);
             if (l == valy[k]) prob += qprob/(sigmoid(M - f_train) - sigmoid(-M- f_train));
@@ -80,7 +80,7 @@ void clm_calc_metrix(const vector<double> w, const vector<vector<double>> valx, 
         }
         f_train += w[d];
         for (int l = 1; l<=q; l++){
-            if (l==1) qprob = sigmoid(b[0] - f_train) - sigmoid(- f_train);
+            if (l==1) qprob = sigmoid(b[0] - f_train) - sigmoid(- M - f_train);
             else if (l<q) qprob = sigmoid(b[l - 1] - f_train) - sigmoid(b[l - 2]- f_train);
             else qprob = sigmoid(M - f_train) - sigmoid(b[q - 2]- f_train);
             if (l == valy[k]) prob += qprob/(sigmoid(M - f_train) - sigmoid(-M- f_train));
