@@ -15,42 +15,29 @@
 using namespace std;
 using namespace Eigen;
 
-const double EPS = 1e-10;
+const double EPS = 1e-6;
 const double PRE_FIT_EPS = 1e-1;
-const int ITER = 1000000;
+const int ITER = 1000;
 const double LOG2 = 0.693147;
-const int pn = 1000;
+const int pn = 100;
 const int pm = 10;
 
 
 
-void solve_square(const int n, const int q, double *fsum, double* f, double *b, const int *y, double *solver_y, int iter, const double l_inv) {
+void solve_square(const int n, const int q, double *fsum, double* f, double *b, const int *y, double *solver_y, int iter, const double l_inv, const double M) {
     double grad;
-
     for (int i = 0; i < n; i++){
-        grad = clm_w_derivative(q, fsum[i], b, y[i]);
+        grad = clm_w_derivative(q, fsum[i], b, y[i], M);
         solver_y[i] = f[i] - l_inv * grad;
     }
     return;
 }
 
-double calc_objective(vector<double> fsum, vector<int> y, double *b, int q, vector<vector<double>> f, vector<vector<int>> argsort, double lam){
+double calc_objective(vector<double> fsum, vector<int> y, double *b, int q, vector<vector<double>> f, vector<vector<int>> argsort, const double M, double lam){
 
-    double loss;
+    double loss = 0;
     for (size_t i=0; i < y.size(); i++){
-        if (y[i] == 1){
-            loss += log1pexpz(fsum[i] - b[0]);
-        }
-        else if (y[i] == q){
-            loss += log1pexpz(b[q - 2] - fsum[i]);
-        }else {
-            double delta = b[y[i] - 1] - b[y[i] - 2];
-            double gamma = b[y[i] - 2] - fsum[i];
-            double c1;
-            if (delta < LOG2) c1 = log(-expm1(-delta));
-            else c1 = log1p(-exp(-delta));
-            loss -= c1 - log1pexpz(-gamma-delta) - log1pexpz(gamma);
-        }
+        loss += log_likelihood(fsum[i], y[i], b, q,M);
     }
     for (size_t j=0; j < f.size(); j++){
         for (size_t i=0; i < y.size() - 1; i++){
@@ -64,8 +51,8 @@ double calc_objective(vector<double> fsum, vector<int> y, double *b, int q, vect
 void set_argsort(vector<vector<int>> &argsort, vector<vector<int>> &argsort_c, vector<vector<int>> &argsort_inv, vector<vector<double>> const &x){
     int d = x.size();
     int n = x[0].size();
-    int i;
-    for (int j = 0; j<d; j++){
+    int i,j;
+    for (j = 0; j<d; j++){
         vector<double> xj = x[j];
         argsort[j];
         iota(argsort[j].begin(), argsort[j].end(), 0);
@@ -83,7 +70,7 @@ void set_argsort(vector<vector<int>> &argsort, vector<vector<int>> &argsort_c, v
     }
     return;
 }
-double calc_min_subopt(double loss, double lam){
+double calc_min_subopt(const double loss, const double lam){
     if (loss > lam) {
         return loss - lam;
     } else if (loss < -lam) {
@@ -93,10 +80,9 @@ double calc_min_subopt(double loss, double lam){
     }
 }
 
-double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, double lam, const vector<int> c, int *y, double *gradient){
-    double subopt;
-    double temp_loss;
-    bool is_v_equivalent;
+double calc_suboptibality(const int q, const int n, const double *b, const double *fsum, const double *f, const double lam, const vector<int> c, const int *y, double *gradient, const double M){
+    double subopt = 0;
+    double temp_loss = 0;
     int *gsign;
     gsign = new int[n + 1];
     gsign[0] = 0;
@@ -114,7 +100,7 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
     }
     int pre_i = 0;
     for (int i = 0; i < n-1; i++){
-        temp_loss += clm_w_derivative(q, fsum[i], b, y[i]);
+        temp_loss += clm_w_derivative(q, fsum[i], b, y[i], M);
         if (i==n-1||!c[i]) {
             if (gsign[pre_i] < 2) {
                 temp_loss -= gsign[pre_i] * lam;
@@ -142,10 +128,10 @@ double calc_suboptibality(int q, int n, double *b, double *fsum, double *f, doub
 
 
 
-int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,const  vector<int> y , int q, const double lam, double *b, double L, const double M) {
+int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,const  vector<int> y , const int q, const double lam, double *b, const double L, const double M, int& iteration) {
     int n = y.size();
     int d = x.size();
-    double duration = 0;
+    // double duration = 0;
     vector<double> fsum(n, 0);
     vector<double> fsumtmp(n, 0);
     VectorXd db(q-1);
@@ -173,68 +159,61 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
     double newton_eta;
     double loss;
     double bsubopt, pre_bsubopt;
-    double l_inv = 1/(L);
-    double flsa_lam = l_inv * lam;
-    double subopt;
+    const double l_inv = 1/(L);
+    const double flsa_lam = l_inv * lam;
     clm_b_derivative(n, q, &fsum[0], b, &y[0], M, db, hessianb);
-    subopt = 0;
+    double subopt = 0;
     for (int l = 0; l<q-1; l++){
         subopt += abs(db[l]);
     }
-    // cout <<"b subopt: "<<subopt<< ", total_subopt: ";
     for (int j = 0; j < d; j++){
         for (int i = 0; i < n; i++){
             sorted_fsum[i] = fsum[argsort[j][i]];
             sorted_f[i] = f[j][argsort[j][i]];
         }
-        subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0]);
+        subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0], M);
     }
+    const double convergeThreshold = subopt * EPS;
 
-    // cout <<subopt << "\n";
-
-    const double init_subopt = subopt;
-
-    for (int k=0; k<ITER; k++) {
-        chrono::system_clock::time_point  start, end; // 型は auto で可
-        start = chrono::system_clock::now();
-        for (int j = 0; j < d; j++){
-            solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k, l_inv);
-            for (int i = 0; i < n; i++){
-                fsumtmp[i] = fsum[i] - f[j][i];
-                sorted_solver_y[i] = solver_y[argsort[j][i]];
-            }
-            tf_dp(n, &sorted_solver_y[0], flsa_lam, &argsort_c[j][0], &solver_f[0]);
-            for (int i = 0; i < n; i++){
-                f[j][i] = solver_f[argsort_inv[j][i]];
-                fsum[i] = fsumtmp[i] + f[j][i];
-            }
-        }
-        end = chrono::system_clock::now();
-        duration += chrono::duration_cast<std::chrono::milliseconds>(end-start).count(); 
-        subopt = 0;
-        for (int j = 0; j < d; j++){
-        // for (int j = d-1; j >= 0; j--){
-            for (int i = 0; i < n; i++){
-                sorted_fsum[i] = fsum[argsort[j][i]];
-                sorted_f[i] = f[j][argsort[j][i]];
-            }
-            subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0]);
-        }
-        // if (k%pn==0){
-        //     loss = calc_objective(fsum, y, b, q, f, argsort, lam);
-        //     std::cout << "iter: " << k << " time: " << duration;
-        //     std::cout <<"  loss: " << loss <<" , subopt" << " : "<<subopt/init_subopt <<"\n";
-        // }
+    // for (int k=0; k<ITER; k++) {
+    //     chrono::system_clock::time_point  start, end; // 型は auto で可
+    //     start = chrono::system_clock::now();
+    //     for (int j = 0; j < d; j++){
+    //         solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k, l_inv, M);
+    //         for (int i = 0; i < n; i++){
+    //             fsumtmp[i] = fsum[i] - f[j][i];
+    //             sorted_solver_y[i] = solver_y[argsort[j][i]];
+    //         }
+    //         tf_dp(n, &sorted_solver_y[0], flsa_lam, &argsort_c[j][0], &solver_f[0]);
+    //         for (int i = 0; i < n; i++){
+    //             f[j][i] = solver_f[argsort_inv[j][i]];
+    //             fsum[i] = fsumtmp[i] + f[j][i];
+    //         }
+    //     }
+    //     end = chrono::system_clock::now();
+    //     duration += chrono::duration_cast<std::chrono::milliseconds>(end-start).count(); 
+    //     subopt = 0;
+    //     for (int j = 0; j < d; j++){
+    //     // for (int j = d-1; j >= 0; j--){
+    //         for (int i = 0; i < n; i++){
+    //             sorted_fsum[i] = fsum[argsort[j][i]];
+    //             sorted_f[i] = f[j][argsort[j][i]];
+    //         }
+    //         subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0], M);
+    //     }
+    //     if (k%pn==0){
+    //         loss = calc_objective(fsum, y, b, q, f, argsort, M, lam);
+    //         std::cout << "iter: " << k << " time: " << duration;
+    //         std::cout <<"  loss: " << loss <<" , subopt" << " : "<<subopt/init_subopt <<"\n";
+    //     }
         
-        if (subopt/init_subopt < PRE_FIT_EPS) {
-            // std::cout << "pre-converged: " << k << "\n";
-            // std::cout << duration << "\n";
-            break;
-        }
-    }
+    //     if (subopt/init_subopt < PRE_FIT_EPS) {
+    //         // std::cout << "pre-converged: " << k << "\n";
+    //         // std::cout << duration << "\n";
+    //         break;
+    //     }
+    // }
     for (int k=0; k<ITER; k++) {
-        chrono::system_clock::time_point  start, end; // 型は auto で可
-        start = chrono::system_clock::now();
         clm_b_derivative(n, q, &fsum[0], b, &y[0], M, db, hessianb);
         llt.compute(hessianb);
         newton = llt.solve(db);
@@ -242,7 +221,7 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
         for (int l = 0; l<q-1; l++) b[l] -= newton[l];
         for (int j = 0; j < d; j++){
         // for (int j = d-1; j >= 0; j--){
-            solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k, l_inv);
+            solve_square(n, q, &fsum[0], &f[j][0], b, &y[0], &solver_y[0], k, l_inv, M);
             for (int i = 0; i < n; i++){
                 fsumtmp[i] = fsum[i] - f[j][i];
                 sorted_solver_y[i] = solver_y[argsort[j][i]];
@@ -254,8 +233,8 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
             }
         }
 
-        end = chrono::system_clock::now();
-        duration += chrono::duration_cast<std::chrono::milliseconds>(end-start).count(); 
+        // end = chrono::system_clock::now();
+        // duration += chrono::duration_cast<std::chrono::milliseconds>(end-start).count(); 
         if (k%pm==0){
 
             if (b[0] < -M || b[q-2] > M) return 1;
@@ -270,13 +249,13 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
                     sorted_fsum[i] = fsum[argsort[j][i]];
                     sorted_f[i] = f[j][argsort[j][i]];
                 }
-                subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0]);
+                subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0], M);
             }
 
-            if ((subopt + bsubopt)/init_subopt < EPS) {
+            if (subopt + bsubopt < convergeThreshold) {
                 // std::cout << "converged: " << k << "\n";
                 // std::cout << duration << "\n";
-                // loss = calc_objective(fsum, y, b, q, f, argsort, lam);
+                // loss = calc_objective(fsum, y, b, q, f, argsort, M, lam);
                 // std::cout << "iter: " << k << " loss: " << loss << endl;
                 // std::cout << "f max: [";
                 // for (int j=0; j<d; j++) std::cout << *std::max_element(f[j].begin(), f[j].end()) << ' ';
@@ -285,23 +264,23 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
                 // std::cout << "f min: [";
                 // for (int j=0; j<d; j++) std::cout << *std::min_element(f[j].begin(), f[j].end()) << ' ';
                 // std::cout << "]" <<endl;
-
+                iteration = k;
                 break;
             }
         }
 
 
-        // if (k%pn==0){
-        //     loss = calc_objective(fsum, y, b, q, f, argsort, lam);
-        //     std::cout << "iter: " << k << " time: " << duration;
-        //     std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/init_subopt << " , bsubopt" << " : "<<bsubopt/init_subopt << "\n";
-        //     std::cout << "b: [";
-        //     for (int l = 0; l<q-1; l++){
-        //         std::cout << b[l] << " ";
-        //     }
-        //     std::cout << "]\n";
+    //     if (k%pn==0){
+    //         loss = calc_objective(fsum, y, b, q, f, argsort, M, lam);
+    //         std::cout << "iter: " << k << " time: " << duration;
+    //         std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/init_subopt << " , bsubopt" << " : "<<bsubopt/init_subopt << "\n";
+    //         std::cout << "b: [";
+    //         for (int l = 0; l<q-1; l++){
+    //             std::cout << b[l] << " ";
+    //         }
+    //         std::cout << "]\n";
                     
-        // }
+    //     }
     }
     return 0;
 }
@@ -364,7 +343,7 @@ double solve_gradient_descent(const vector< vector<double>> x, vector< vector<do
                 sorted_fsum[i] = fsum[argsort[j][i]];
                 sorted_f[i] = f[j][argsort[j][i]];
             }
-            subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[0], &gradient[j][0]);
+            subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[0], &gradient[j][0], M);
         }
 
         end = chrono::system_clock::now();
@@ -372,7 +351,7 @@ double solve_gradient_descent(const vector< vector<double>> x, vector< vector<do
 
         
         if (k%pn==0){
-            loss = calc_objective(fsum, y, b, q, f, argsort, lam);
+            loss = calc_objective(fsum, y, b, q, f, argsort, M, lam);
             if (loss==INFINITY){
                 return loss;
             }

@@ -25,12 +25,12 @@ double sigmoid(const double x) {
     return 1 / (exp(-x) + 1);
 }
 
-double clm_w_derivative(int q, double s, double *b, int y) {
+double clm_w_derivative(const int q, const double s, const double *b, const int y, const double M) {
     if (y == 1){
-        return 1 - sigmoid(b[0] - s);
+        return 1 - sigmoid(- M - s) - sigmoid(b[0] - s);
     }
     if (y == q){
-        return - sigmoid(b[q - 2] - s);
+        return 1 - sigmoid(b[q - 2] - s) - sigmoid(M - s);
     }
     return 1 - sigmoid(b[y - 2] - s) - sigmoid(b[y - 1] - s);
 }
@@ -77,34 +77,51 @@ void clm_b_derivative(int n, int q, const double *f, const double *b, const int 
 }
 
 
-double log1pexpz(double z){
-    if (z < 0) return z + log1p(exp(-z));
-    else return log1p(exp(z));
+double log1pexpz(const double z){
+    if (z < 0) {
+        if (z < -100) return 0;
+        else return z + log1p(exp(-z));
+        }
+    else{
+        if (z > 100) return z;
+        else return log1p(exp(z));
+    }
 }
 
 
-double calc_clm_objective(vector<double> fsum, vector<int> y, double *b, int q){
+double log_likelihood(const double fi, const int yi, const double *b, const int q, const double M){
+    double byi_1;
+    double byi_2;
+    if (yi == 1){
+        byi_1 = b[0];
+        byi_2 = -M;
+    }
+    else if (yi == q){
+        byi_1 = M;
+        byi_2 = b[q-2];
+    }else {
+        byi_1 = b[yi - 1];
+        byi_2 = b[yi - 2];
+    }
+    double delta = byi_1 - byi_2;
+    double gamma = byi_2 - fi;
+    double c1;
+    if (delta < LOG2) c1 = log(-expm1(-delta));
+    else c1 = log1p(-exp(-delta));
+    return  log1pexpz(-gamma-delta) + log1pexpz(gamma) - c1;
+    
+}
+
+double calc_clm_objective(vector<double> fsum, vector<int> y, double *b, int q, const double M){
     double loss;
     for (size_t i=0; i < y.size(); i++){
-        if (y[i] == 1){
-            loss += log1pexpz(fsum[i] - b[0]);
-        }
-        else if (y[i] == q){
-            loss += log1pexpz(b[q - 2] - fsum[i]);
-        }else {
-            double delta = b[y[i] - 1] - b[y[i] - 2];
-            double gamma = b[y[i] - 2] - fsum[i];
-            double c1;
-            if (delta < LOG2) c1 = log(-expm1(-delta));
-            else c1 = log1p(-exp(-delta));
-            loss -= c1 - log1pexpz(-gamma-delta) - log1pexpz(gamma);
-        }
+        loss += log_likelihood(fsum[i], y[i], b, q, M);
     }
     return loss;
 }
 
 
-vector<double> calc_clm_suboptibality(const vector<vector<double>> x, const vector<int> y, int q, double *b, vector<double> fsum){
+vector<double> calc_clm_suboptibality(const vector<vector<double>> x, const vector<int> y, int q, double *b, vector<double> fsum, const double M){
     double subopt;
     double temp_loss;
     bool is_v_equivalent;
@@ -114,7 +131,7 @@ vector<double> calc_clm_suboptibality(const vector<vector<double>> x, const vect
     vector<double> gradient(d+1);
     
     for (int i = 0; i < n; i++){
-        clmwd = clm_w_derivative(q, fsum[i], b, y[i]);
+        clmwd = clm_w_derivative(q, fsum[i], b, y[i],M);
         for (int j = 0; j < d; j++) gradient[j] += x[j][i] * clmwd;
         gradient[d] += clmwd;
     }
@@ -145,7 +162,7 @@ int trainClm(const vector< vector<double>> x, const vector<int> y, const int q, 
             for (int j = 0; j < d; j++) fsum[i] += w[j] * x[j][i];
             fsum[i] += w[d];
         }
-        gradient = calc_clm_suboptibality(x,y,q,b, fsum);
+        gradient = calc_clm_suboptibality(x,y,q,b, fsum,M);
         for (int j = 0; j <= d; j++) w[j] -= l_inv * gradient[j];
 
     }
@@ -166,7 +183,7 @@ int trainClm(const vector< vector<double>> x, const vector<int> y, const int q, 
             for (int j = 0; j < d; j++) fsum[i] += w[j] * x[j][i];
             fsum[i] += w[d];
         }
-        gradient = calc_clm_suboptibality(x,y,q,b, fsum);
+        gradient = calc_clm_suboptibality(x,y,q,b,fsum,M);
         subopt = 0;
         for (int i = 0; i < d + 1; i++) subopt += abs(gradient[i]);
         for (int i = 0; i < q-1; i++) subopt += abs(db[i]);
@@ -176,7 +193,7 @@ int trainClm(const vector< vector<double>> x, const vector<int> y, const int q, 
         if (k%pn==0){
             if (b[0] < -M || b[q-2] > M) return 1;
             for (int l = 0; l<q-2; l++) if (b[l+1] - b[l] < 0) return 1;
-            loss = calc_clm_objective(fsum, y, b, q);
+            loss = calc_clm_objective(fsum, y, b, q, M);
             if (loss==INFINITY) return loss;
             cout << "iter: " << k;
             cout << " loss: " << loss;

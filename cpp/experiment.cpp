@@ -4,7 +4,7 @@
 #include "train_tvaclm.hpp"
 #include <iostream>
 #include <vector>
-#include <deque>
+#include <chrono>
 #include <algorithm>
 #include <math.h>
 #include <string>
@@ -14,22 +14,30 @@
 using namespace std;
 
 int main(){
-    double pi = 1;
     const int CVNUM = 5;
-    const vector<double> lam_list = {0.0625, 0.125,0.25,0.5,1,2,4,8,16,32,64,128};
+    vector<double> lam_list(12);
+    for (double i=0; i< 12; i++){
+        lam_list[i] = pow(10,(i/4.)-1);
+    }
     const int lamn = lam_list.size();
+    int iteration;
  
-    string datalist[] = { "wlb", "winequality-white","winequality"};
+    // string datalist[] = { "wlb", "winequality-white","winequality"};
     // string datalist[] = {"ESL","LEV","SWD","automobile","balance-scale","bondrate","car","contact-lenses","eucalyptus","newthyroid","pasture","squash-stored","squash-unstored","tae","toy","ERA","winequality-red"};
     // string datalist[] = {"abalone", "bank1-5","bank2-5","calhousing-5","census1-5","census2-5","computer1-5","computer2-5","housing","machine","pyrim","stock"};
     // string datalist[] = {"abalone10", "bank1-10","bank2-10","calhousing-10","census1-10","census2-10","computer1-10","computer2-10","housing10","machine10","pyrim10","stock10"};
-    // string datalist[] = {"balance-scale"};
-    string datadir_name = "bigdata";
+
+    string datalist[] = {"bondrate"};
+    string datadir_name = "ordinal-regression";
     // string datadir_name = "discretized-regression/5bins";
+    // string datadir_name = "bigdata";
+
     for (auto dataname: datalist){
-        double eta = 1.;
-        std::ofstream myFile("./../tvaclm_exp2/" + datadir_name + "/"+dataname+".csv", ios::app);
-        myFile << "num,lambda,trainprob,trainacc,trainmae,prob,acc,mae" << endl;
+        double pi = 1e-6;
+        double M = 30.;
+        double duration;
+        std::ofstream myFile("./../tvaclm_exp1/" + datadir_name + "/"+dataname+".csv", ios::app);
+        myFile << "num,lambda,iteration,duration,trainprob,trainacc,trainmae,prob,acc,mae" << endl;
         for (int datanum = 0; datanum<=30; datanum++){
             auto datanum_str = std::to_string(datanum);
             std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/" + datadir_name + "/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
@@ -75,7 +83,6 @@ int main(){
 
             int q = *max_element(y.begin(), y.end());
 
-            double M = pi * q * eta;
 
             std::cout << "test_n: " << test_n << ", train_n: " << n << ", q: " << q <<"\n";
 
@@ -87,6 +94,7 @@ int main(){
             vector<vector<int>> argsort_inv(d, vector<int>(n));
             set_argsort(argsort, argsort_c, argsort_inv, x);
             vector<double> maesum(lamn, 0);
+            vector<int> itersum(lamn, 0);
 
             std::cout << "progress:" << flush;
             for (int k = 0; k < CVNUM; k++){
@@ -118,6 +126,7 @@ int main(){
                 vector<vector<int>> argsort_c_cv(d, vector<int>(train_n-1));
                 vector<vector<int>> argsort_inv_cv(d, vector<int>(train_n));
                 set_argsort(argsort_cv, argsort_c_cv, argsort_inv_cv, train_x);
+
                 for (int l=0; l < lamn; l++){
 
                     const double lam = lam_list[l];
@@ -126,15 +135,12 @@ int main(){
                         b[i] =  2 * pi * i - pi * (q - 2);
                     }
                     vector<vector<double>> fcv(d, vector<double>(train_y.size(),0));
-
-                    int invalid = train_tvaclm(train_x, fcv, train_y, q, lam, b, 0.3, M);
-
+                    int invalid = train_tvaclm(train_x, fcv, train_y, q, lam, b, 0.3, M,iteration);
                     if (invalid) {
                         l -= 1;
-                        eta *= 4;
+                        M += 3;
                         pi *= 0.5;
-                        M = pi * q * eta;
-                        std::cout << "init value of newton is not valid. lambda: " << lam << ", k: " << k << ", eta: " << eta << ", pi: "<< pi <<endl;
+                        std::cout << "init value of newton is not valid. lambda: " << lam << ", k: " << k << ", M: " << M << ", pi: "<< pi <<endl;
                         continue;
                     }
                     vector<vector<double>> sortedfcv(d, vector<double>(train_n));
@@ -148,21 +154,24 @@ int main(){
                     }
                     // double prob, acc, mae;
                     // tvaclm_calc_metrix(sortedfcv,sortedxcv, train_x, train_y, mae, acc, prob, q, b,  M);
+
                     double valprob, valacc, valmae;
                     tvaclm_calc_metrix(sortedfcv,sortedxcv, val_x, val_y, valmae, valacc, valprob, q, b,  M);
                     maesum[l]+=valmae;
+                    itersum[l]+=iteration;
 
                     std::cout << ">" << flush;
                 }
             }
             std::cout << endl;
-            double min_mae_ave = 1e10;
-            double best_lam = 1;
+            double min_mae_ave = 1e100;
+            double best_lam = -1;
             for (int l=0; l < lamn; l++){
-                const double lam = lam_list[l];
+                double lam = lam_list[l];
                 double mae_ave = maesum[l]/CVNUM;
-                std::cout << " |     lambda: " << lam << ", mean MAE: " << mae_ave << "       |\n";
-                if (mae_ave < min_mae_ave) {
+                double iter_ave = itersum[l]/CVNUM;
+                std::cout << "          lambda: " << lam << ", iter: " << iter_ave << ", mean MAE: " << mae_ave << endl;
+                if (mae_ave <= min_mae_ave) {
                     min_mae_ave = mae_ave;
                     best_lam = lam;
                 }
@@ -171,12 +180,17 @@ int main(){
 
             vector<vector<double>> f(d, vector<double>(y.size()));
 
-            std::cout << "lambda: " << best_lam << ", eta: " <<eta<<"\n";
+            std::cout << "lambda: " << best_lam << ", pi: " <<pi<< ", M: " <<M<<"\n";
             double b[q - 1];
             for (int i=0; i < q-1; i++){
                 b[i] =  2 * pi * i - pi * (q - 2);
             }
-            int invalid = train_tvaclm(x, f, y, q, best_lam, b, 0.3, M);
+
+            chrono::system_clock::time_point  start, end; // 型は auto で可
+            start = chrono::system_clock::now();
+            int invalid = train_tvaclm(x, f, y, q, best_lam, b, 0.3, M, iteration);
+            end = chrono::system_clock::now();
+            duration = chrono::duration_cast<std::chrono::seconds>(end-start).count(); 
             if (invalid) {
                 std::cout << "++++++++++++++++++++++++++++++++++++\n    invalid init value\n+++++++++++++++++++++++++++++++++++++\n";
                 myFile <<datanum<<","<< best_lam << "," << "train error!!!!"<< endl;
@@ -201,11 +215,12 @@ int main(){
             // Send the column name to the stream
             
             // Send data to the stream
-            myFile <<datanum<<","<< best_lam << ","<<trainprob << ","<< trainacc << "," << trainmae<< "," <<testprob<< "," <<testacc<< "," <<testmae << endl;
+            myFile <<datanum<<","<< best_lam << ","<< iteration << ","<< duration<<","<<trainprob << ","<< trainacc << "," << trainmae<< "," <<testprob<< "," <<testacc<< "," <<testmae << endl;
             std::cout<< "____________________________________________________\n";
 
-            std::cout << "TRAIN PROB: " << trainprob <<"| "<< "TRAIN ACC: " << trainacc <<"| "<< "TRAIN MAE: " << trainmae <<endl;
-            std::cout << "TEST PROB: " << testprob <<"| "<< "TEST ACC: " << testacc <<"| "<< "TEST MAE: " << testmae <<endl;
+            std::cout << "iter: " << iteration <<" | "<< "duration(s): " << duration<<endl;
+            std::cout << "TRAIN PROB: " << trainprob <<" | "<< "TRAIN ACC: " << trainacc <<" | "<< "TRAIN MAE: " << trainmae <<endl;
+            std::cout << "TEST PROB: " << testprob <<" | "<< "TEST ACC: " << testacc <<" | "<< "TEST MAE: " << testmae <<endl;
 
             std::cout<< "++++++++++++++++++++++++++++++++++++++++++++++++++++\n" << endl;
 
