@@ -24,6 +24,7 @@ void tf_dp(int n, double *y, double lam, int *c, double *beta) {
   double *tm;
   double *tp;
 
+  bool init = true;
   /* Take care of a few trivial cases */
   if (n == 0) return;
   if (n == 1 || lam == 0) {
@@ -53,6 +54,7 @@ void tf_dp(int n, double *y, double lam, int *c, double *beta) {
     blast = -bfirst;
   }
   else{
+    init = false;
     tm[0] = -lam + y[0];
     tp[0] = lam + y[0];
 
@@ -98,16 +100,21 @@ void tf_dp(int n, double *y, double lam, int *c, double *beta) {
   /* 各イタレーションでδ_k'の計算*/
   /* Now iterations 2 through n-1 */
   for (k = 1; k < n - 1; k++) {
+    // ccount++;
     if(c[k]){
-      afirst += 1;
+      afirst++;
+      alast--;
       bfirst -= y[k + 1];
-      alast -= 1;
       blast += y[k + 1];
+      if (!init){
+        bfirst-=lam;
+        blast-=lam;
+      }
     }
     else{
+      init=false;
       /* Compute lo: step up from l until the
         derivative is greater than -lam */
-
       alo = afirst;
       blo = bfirst;
       for (lo = l; lo <= r; lo++) {
@@ -156,8 +163,8 @@ void tf_dp(int n, double *y, double lam, int *c, double *beta) {
       b[r] = bhi + lam;
 
       afirst = 1;
-      bfirst = -y[k + 1] - lam;
       alast = -1;
+      bfirst = -y[k + 1] - lam;
       blast = y[k + 1] - lam;
     }
   }

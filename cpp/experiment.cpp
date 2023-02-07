@@ -15,28 +15,32 @@ using namespace std;
 
 int main(){
     const int CVNUM = 5;
+    int local_cvnum;
+    bool invalid_data = false;
     vector<double> lam_list(12);
     for (double i=0; i< 12; i++){
         lam_list[i] = pow(10,(i/4.)-1);
     }
+    // vector<double> lam_list{5};
     const int lamn = lam_list.size();
     int iteration;
  
-    // string datalist[] = { "wlb", "winequality-white","winequality"};
+    string datalist[] = { "wlb", "winequality-white","winequality"};
+    // string datalist[] = { "wlb"};
     // string datalist[] = {"ESL","LEV","SWD","automobile","balance-scale","bondrate","car","contact-lenses","eucalyptus","newthyroid","pasture","squash-stored","squash-unstored","tae","toy","ERA","winequality-red"};
     // string datalist[] = {"abalone", "bank1-5","bank2-5","calhousing-5","census1-5","census2-5","computer1-5","computer2-5","housing","machine","pyrim","stock"};
     // string datalist[] = {"abalone10", "bank1-10","bank2-10","calhousing-10","census1-10","census2-10","computer1-10","computer2-10","housing10","machine10","pyrim10","stock10"};
 
-    string datalist[] = {"bondrate"};
-    string datadir_name = "ordinal-regression";
-    // string datadir_name = "discretized-regression/5bins";
-    // string datadir_name = "bigdata";
+    // string datadir_name = "ordinal-regression";
+    // string datadir_name = "discretized-regression/10bins";
+    // string datadir_name = "scale";
+    string datadir_name = "bigdata";
 
     for (auto dataname: datalist){
-        double pi = 1e-6;
-        double M = 30.;
+        double pi = 1e-4;
+        double M = 30;
         double duration;
-        std::ofstream myFile("./../tvaclm_exp1/" + datadir_name + "/"+dataname+".csv", ios::app);
+        std::ofstream myFile("./../tvaclm_exp4/" + datadir_name + "/"+dataname+ ".csv");
         myFile << "num,lambda,iteration,duration,trainprob,trainacc,trainmae,prob,acc,mae" << endl;
         for (int datanum = 0; datanum<=30; datanum++){
             auto datanum_str = std::to_string(datanum);
@@ -97,6 +101,7 @@ int main(){
             vector<int> itersum(lamn, 0);
 
             std::cout << "progress:" << flush;
+            local_cvnum = CVNUM;
             for (int k = 0; k < CVNUM; k++){
                 // std::cout << "lambda: " << lam << ", cv k:" << k << "\n";
                 
@@ -120,6 +125,20 @@ int main(){
                 
                 }
                 int train_n = train_y.size();
+                for (int qe=1; qe<=q; qe++){
+                    if (!std::count(train_y.begin(), train_y.end(), qe)){
+                        std::cout << "element not found... continue" << endl;
+                        invalid_data = true;          
+                        break;
+                    }
+                }
+                if (invalid_data){
+                    std::cout << "#";
+                    local_cvnum -= 1;
+                    invalid_data = false;
+                    continue;
+                }
+
                 std::cout << "-" << flush;
                 // std::cout << "train data sample number: " << train_n << " |  validation data sample number: " << val_y.size() << endl;
                 vector<vector<int>> argsort_cv(d, vector<int>(train_n));
@@ -137,11 +156,17 @@ int main(){
                     vector<vector<double>> fcv(d, vector<double>(train_y.size(),0));
                     int invalid = train_tvaclm(train_x, fcv, train_y, q, lam, b, 0.3, M,iteration);
                     if (invalid) {
-                        l -= 1;
-                        M += 3;
-                        pi *= 0.5;
-                        std::cout << "init value of newton is not valid. lambda: " << lam << ", k: " << k << ", M: " << M << ", pi: "<< pi <<endl;
-                        continue;
+                        for (int i=0; i < q-1; i++) cout << b[i] << " ";
+                        cout << endl;
+                        cout << q <<" error\n";
+                        return 1;
+                        // l -= 1;
+                        // M *= 2;
+                        // pi /= 2;
+                        // for (int bq=0; bq < q-1; bq++) cout << b[bq] << " ";
+                        // cout << endl;
+                        // std::cout << "init value of newton is not valid. lambda: " << lam << ", k: " << k << ", M: " << M << ", pi: "<< pi <<endl;
+                        // continue;
                     }
                     vector<vector<double>> sortedfcv(d, vector<double>(train_n));
                     vector<vector<double>> sortedxcv(d, vector<double>(train_n));
@@ -168,8 +193,8 @@ int main(){
             double best_lam = -1;
             for (int l=0; l < lamn; l++){
                 double lam = lam_list[l];
-                double mae_ave = maesum[l]/CVNUM;
-                double iter_ave = itersum[l]/CVNUM;
+                double mae_ave = maesum[l]/local_cvnum;
+                double iter_ave = itersum[l]/local_cvnum;
                 std::cout << "          lambda: " << lam << ", iter: " << iter_ave << ", mean MAE: " << mae_ave << endl;
                 if (mae_ave <= min_mae_ave) {
                     min_mae_ave = mae_ave;
@@ -190,7 +215,7 @@ int main(){
             start = chrono::system_clock::now();
             int invalid = train_tvaclm(x, f, y, q, best_lam, b, 0.3, M, iteration);
             end = chrono::system_clock::now();
-            duration = chrono::duration_cast<std::chrono::seconds>(end-start).count(); 
+            duration = chrono::duration_cast<std::chrono::microseconds>(end-start).count()/1e6; 
             if (invalid) {
                 std::cout << "++++++++++++++++++++++++++++++++++++\n    invalid init value\n+++++++++++++++++++++++++++++++++++++\n";
                 myFile <<datanum<<","<< best_lam << "," << "train error!!!!"<< endl;

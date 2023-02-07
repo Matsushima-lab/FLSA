@@ -15,11 +15,11 @@
 using namespace std;
 using namespace Eigen;
 
-const double EPS = 1e-6;
-const double PRE_FIT_EPS = 1e-1;
-const int ITER = 1000;
+const double EPS = 1e-8;
+// const double PRE_FIT_EPtS = 1e-1;
+const int ITER = 1000000;
 const double LOG2 = 0.693147;
-const int pn = 100;
+const int pn = 1;
 const int pm = 10;
 
 
@@ -83,6 +83,7 @@ double calc_min_subopt(const double loss, const double lam){
 double calc_suboptibality(const int q, const int n, const double *b, const double *fsum, const double *f, const double lam, const vector<int> c, const int *y, double *gradient, const double M){
     double subopt = 0;
     double temp_loss = 0;
+    int ccount = 0;
     int *gsign;
     gsign = new int[n + 1];
     gsign[0] = 0;
@@ -101,9 +102,11 @@ double calc_suboptibality(const int q, const int n, const double *b, const doubl
     int pre_i = 0;
     for (int i = 0; i < n-1; i++){
         temp_loss += clm_w_derivative(q, fsum[i], b, y[i], M);
+        ccount++;
         if (i==n-1||!c[i]) {
+            temp_loss/=ccount;
             if (gsign[pre_i] < 2) {
-                temp_loss -= gsign[pre_i] * lam;
+                temp_loss -= gsign[pre_i] *lam;
             }
             if (gsign[i + 1] < 2) {
                 temp_loss += gsign[i + 1] * lam;
@@ -119,6 +122,7 @@ double calc_suboptibality(const int q, const int n, const double *b, const doubl
             }
             pre_i = i + 1;
             temp_loss = 0;
+            ccount = 0;
         }
     }
     delete[] gsign;
@@ -174,6 +178,7 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
         subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0], M);
     }
     const double convergeThreshold = subopt * EPS;
+    const double initsubopt = subopt;
 
     // for (int k=0; k<ITER; k++) {
     //     chrono::system_clock::time_point  start, end; // 型は auto で可
@@ -237,8 +242,21 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
         // duration += chrono::duration_cast<std::chrono::milliseconds>(end-start).count(); 
         if (k%pm==0){
 
-            if (b[0] < -M || b[q-2] > M) return 1;
-            for (int l = 0; l<q-2; l++) if (b[l+1] - b[l] < 0) return 1;
+            if (b[0] < -M) {
+                // cout << "correct the b order";
+                // b[0] = b[1] - EPS;
+               return 1; 
+            }
+            if (b[q-2] > M) {
+                // cout << "correct the b order";
+                // b[q-2] = b[q-3] + EPS;
+               return 1; 
+            }
+            for (int l = 1; l<q-2; l++) if (b[l+1] - b[l] < 0) {
+                // cout << "correct the b order";
+                // b[l] =l + 1] - EPS;
+                return 1;
+            }
             bsubopt = 0;
             subopt = 0;
             for (int l = 0; l<q-1; l++){
@@ -252,7 +270,7 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
                 subopt += calc_suboptibality(q, n, b, &sorted_fsum[0], &sorted_f[0],lam, argsort_c[j], &sorted_y[j][0], &gradient[j][0], M);
             }
 
-            if (subopt + bsubopt < convergeThreshold) {
+            if ((subopt + bsubopt)/initsubopt < EPS) {
                 // std::cout << "converged: " << k << "\n";
                 // std::cout << duration << "\n";
                 // loss = calc_objective(fsum, y, b, q, f, argsort, M, lam);
@@ -270,17 +288,17 @@ int train_tvaclm(const vector< vector<double>> x, vector< vector<double>>& f,con
         }
 
 
-    //     if (k%pn==0){
-    //         loss = calc_objective(fsum, y, b, q, f, argsort, M, lam);
-    //         std::cout << "iter: " << k << " time: " << duration;
-    //         std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/init_subopt << " , bsubopt" << " : "<<bsubopt/init_subopt << "\n";
-    //         std::cout << "b: [";
-    //         for (int l = 0; l<q-1; l++){
-    //             std::cout << b[l] << " ";
-    //         }
-    //         std::cout << "]\n";
-                    
-    //     }
+        if (k%pn==0){
+            loss = calc_objective(fsum, y, b, q, f, argsort, M, lam);
+            std::cout << "iter: " << k;
+            std::cout <<"  loss: " << loss <<" , subopt" << " : "<< subopt/initsubopt << " , bsubopt" << " : "<<bsubopt/initsubopt << "\n";
+            std::cout << "b: [";
+            for (int l = 0; l<q-1; l++){
+                std::cout << b[l] << " ";
+            }
+            std::cout << "]\n";
+        }
+
     }
     return 0;
 }

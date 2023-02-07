@@ -15,22 +15,21 @@
 using namespace std;
 
 int main(){
-    const double pi = 0.5;
+    const double pi = 0.0001;
     double M = 30;
 
     // string datalist[] = { "wlb", "winequality-white","winequality"};
     // string datalist[] = {"ESL","LEV","SWD","automobile","balance-scale","bondrate","car","contact-lenses","eucalyptus","newthyroid","pasture","squash-stored","squash-unstored","tae","toy","ERA","winequality-red"};
     // string datalist[] = {"abalone", "bank1-5","bank2-5","calhousing-5","census1-5","census2-5","computer1-5","computer2-5","housing","machine","pyrim","stock"};
     // string datalist[] = {"bank1-10","bank2-10","calhousing-10","census1-10","census2-10","computer1-10","computer2-10","housing10","machine10","pyrim10","stock10"};
-    string datalist[] = {"bondrate"};
-    string datadir_name = "ordinal-regression";
+    string datalist[] = {"wlb"};
+    string datadir_name = "bigdata";
     for (auto dataname: datalist){
-        std::ofstream myFile("./../tvaclm_exp/check_f/"+dataname+".csv");
-        int datanum = 0;
+        int datanum = 1;
         auto datanum_str = std::to_string(datanum);
         std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/" + datadir_name + "/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
         std::string test_filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/" + datadir_name + "/"+dataname+"/matlab/test_"+ dataname+"." + datanum_str;
-        double best_lam = 0.1;
+        double best_lam = 50;
 
         // std::string filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/bigdata/"+dataname+"/matlab/train_"+ dataname+"." + datanum_str;
         // std::string test_filename = "/home/iyori/work/gam/ordinal_regression/orca/datasets2/bigdata/"+dataname+"/matlab/test_"+ dataname+"." + datanum_str;
@@ -48,21 +47,19 @@ int main(){
             continue;
         }
         int yd = train_data[0].size() - 1;
-        int d =  1;
+        int d =  yd;
         int ds = 0;
         vector<vector<double>> x(d,vector<double>{});
         vector<int> y{};
         // TODO: remove
         for (int i=0; i<n; i++){
-            if (i%5!=0){
-                for (int j=ds; j<ds+d; j++){
-                    x[j-ds].push_back(train_data[i][j]);
-                }
-                y.push_back((int) train_data[i][yd]);
+            for (int j=ds; j<ds+d; j++){
+                x[j-ds].push_back(train_data[i][j]);
             }
+            y.push_back((int) train_data[i][yd]);
         }
-        cout <<endl;
         n = y.size();
+        cout <<endl;
         //end
 
         // read test data;
@@ -113,10 +110,7 @@ int main(){
         std::cout << "TEST PROB: " << testprob <<"| "<< "TEST ACC: " << testacc <<"| "<< "TEST MAE: " << testmae <<endl;
         std::cout<< "++++++++++++++++++++++++++++++++++++++++++++++++++++\n" << endl;
 
-
-
         std::cout <<"_______________________________________________\n\n";
-
 
         // TVACLM
         std::cout <<"TVACLM:\n";
@@ -144,7 +138,6 @@ int main(){
         int iteration;
         int invalid =  train_tvaclm(x, f, y, q, best_lam, b, 0.3, M,iteration);
         if (invalid) std::cout << "error!!" << endl;
-
         std::cout << "b: ";
         for (int l = 0; l<q-1; l++){
             std::cout << b[l] << " ";
@@ -164,14 +157,26 @@ int main(){
         // Send the column name to the stream
         
         // Send data to the stream
+
+        std::ofstream myFile("./../tvaclm_exp/check_f/"+dataname+datanum_str+"f.csv");
         for (int j = 0; j < d; j++){
             for (int i = 0; i < n; i++){
-                myFile << f[j][i];
+                myFile << sortedf[j][i];
                 if (i!=n-1) myFile << ",";
                 else myFile << "\n";
             }
-            
         }
+        myFile.close();
+
+        std::ofstream myFile2("./../tvaclm_exp/check_f/"+dataname+datanum_str+"x.csv");
+        for (int j = 0; j < d; j++){
+            for (int i = 0; i < n; i++){
+                myFile2 << sortedx[j][i];
+                if (i!=n-1) myFile2 << ",";
+                else myFile2 << "\n";
+            }
+        }
+        myFile2.close();
         std::cout<< "____________________________________________________\n";
 
         std::cout << "TRAIN PROB: " << trainprob <<"| "<< "TRAIN ACC: " << trainacc <<"| "<< "TRAIN MAE: " << trainmae <<endl;
@@ -180,7 +185,6 @@ int main(){
 
         
         // Close the file
-        myFile.close();
     }
 
     std::cout<< "==========================================================\n\n" << endl;
