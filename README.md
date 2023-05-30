@@ -4,11 +4,11 @@ Generic implementation of the Fused Lasso signal operator
 # Mathematical description
 Input: 
 
-$$ \mathbf{y} = (y_0,\ldots,y_{n-1}) \in \mathbb{R}^n, \mathbf{\lambda} = (\lambda_0,\ldots,\lambda_{n-2})\in \mathbb{R}^{n-1}_{+}, \mathbf{r} = (r_0,\ldots,r_{n-2}) \in \mathbb{R}^{n-1}, \ell: \mathbb{R} \times \mathbb{R} \to \mathbb{R}_{+}$$ 
+$$ \mathbf{y} = (y_0,\ldots,y_{n-1}) \in \mathbb{R}^n, \mathbf{\lambda} = (\lambda_0,\ldots,\lambda_{n-2})\in \mathbb{R}^{n-1}_{+}, \ell: \mathbb{R} \times \mathbb{R} \to \mathbb{R}_{+}$$ 
 
 Output: Solution of fused lasso problem $x^*\in\mathbb{R}^n$ defined as 
 
-$$x^*=\mathop{\mathrm{argmin}}\limits_{x= (x_0,\ldots,x_{n-1}) \in \mathbb{R}^n}\ \sum_{i=0}^{n-1} \ell(x_i,y_i) + \sum_{i=0}^{n-2}\lambda_i|x_{i}-x_{i+1} +r_i|.$$
+$$x^*=\mathop{\mathrm{argmin}}\limits_{x= (x_0,\ldots,x_{n-1}) \in \mathbb{R}^n}\ \sum_{i=0}^{n-1} \ell(x_i,y_i) + \sum_{i=0}^{n-2}\lambda_i|x_{i}-x_{i+1}|.$$
 
 # Implementation
 
